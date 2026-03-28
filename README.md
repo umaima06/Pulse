@@ -1,31 +1,33 @@
 # Pulse
 PULSE is an AI-powered decision system for NGOs that collects scattered community data, identifies the most urgent needs, and helps allocate volunteers and resources smartly — even without internet access.
 
-# Project Structure 
+# Project Structure
+```
 PULSE/
 │
-├── backend/                 ← Person B's Node.js lives here
-│   ├── index.js
-│   ├── package.json
+├── backend/                       ← Person B (Zunairah) — Node.js server
+│   ├── index.js                   ← Main Express server + all API routes
+│   ├── package.json               ← Node dependencies
 │   ├── package-lock.json
-│   ├── .env
+│   ├── ngrok.exe                  ← Exposes local server to internet
+│   ├── .env                       ← Secret keys (not on GitHub)
 │   ├── .gitignore
-│   └── serviceAccountKey.json  
+│   └── serviceAccountKey.json     ← Firebase credentials (not on GitHub)
 │
-├── ai/                      ← YOUR Python brain lives here
-│   ├── intelligence.py
-│   ├── clustering.py
-│   ├── matching.py
-│   ├── config.py
-│   ├── app.py
-│   ├── requirements.txt
-│   └── .env
+├── ai/                            ← Person A — Python AI brain
+│   ├── app.py                     ← Flask server running on port 5000
+│   ├── intelligence.py            ← Groq AI analysis + urgency scoring
+│   ├── clustering.py              ← Groups nearby reports into clusters
+│   ├── matching.py                ← Volunteer skill + distance matching
+│   ├── config.py                  ← AI configuration
+│   ├── requirements.txt           ← Python dependencies
+│   └── .env                       ← Groq API key (not on GitHub)
 │
-├── frontend/                ← Person C's React dashboard lives here
-│   └── (Person C sets this up)
+├── frontend/                      ← Person C — React dashboard
+│   └── (in progress)
 │
 └── README.md
-
+```
 # Umaima
 @ day 1----
 Step 1 — Get your Gemini API key
@@ -46,14 +48,15 @@ used Nominatim which is OpenStreetMap's geocoder. Works for any location in Indi
 
 # Zunairah
 # PULSE - Backend Documentation
-
 ## Backend (Person B)
 
 ### What I Built
 - Firebase + Firestore database setup with 4 collections
 - Express.js backend server
 - Twilio WhatsApp intake pipeline
-- Gemini AI integration (ready, needs API key from Person A)
+- Volunteer registration, matching and auto-assignment system
+- Automatic task creation and tracking
+- SMS/WhatsApp notification to volunteers
 
 ### Day 1
 - Set up Firebase project with Firestore database
@@ -63,9 +66,32 @@ used Nominatim which is OpenStreetMap's geocoder. Works for any location in Indi
 - Built `/incoming-message` route that:
   - Receives WhatsApp messages from field workers
   - Saves raw message to Firestore instantly
-  - Sends to Gemini for analysis
-  - Updates Firestore document with need_type, urgency_score, language, summary
+  - Calls Person A's Flask AI server for analysis
+  - Updates Firestore document with need_type, urgency_score, language, summary, real coordinates
+  - Triggers clustering automatically after each report
   - Replies to field worker confirming receipt
+- Built `/register-volunteer` route:
+  - Accepts volunteer name, email, skills, location, phone
+  - Saves to Firestore `/volunteers` collection
+- Built `/match-volunteers` route:
+  - Takes a cluster_id
+  - Finds all available volunteers with matching skills
+  - Calculates distance from volunteer to cluster using Haversine formula
+  - Returns top 3 closest matching volunteers
+- Built `/assign-volunteer` route:
+  - Assigns a specific volunteer to a cluster
+  - Creates a task in `/tasks` collection
+  - Marks volunteer as unavailable
+- Built `/update-task` route:
+  - Volunteer marks task as accepted or done
+  - Frees volunteer back up when done
+- Built auto-assignment system:
+  - When cluster urgency crosses 80/100 → automatically finds best volunteer
+  - Creates task in Firestore without any human input
+  - Sends WhatsApp notification to volunteer
+- Built `/sms-reply` route:
+  - Volunteer replies ACCEPT → task status updates to accepted
+  - Volunteer replies DONE → task marked complete, volunteer freed up
 
 ### How The Pipeline Works
 ```
@@ -77,10 +103,30 @@ Sent to Express server (/incoming-message)
         ↓
 Saved to Firestore /reports collection
         ↓
-Gemini analyzes: need_type + urgency_score + summary
+Person A's Flask AI server analyzes:
+need_type + urgency_score + real coordinates + summary
         ↓
 Firestore document updated with full analysis
+        ↓
+Clustering fires automatically
+        ↓
+If cluster urgency 80+ → auto assign best volunteer
+        ↓
+Task created in /tasks → volunteer notified via WhatsApp
+        ↓
+Volunteer replies ACCEPT or DONE → Firestore updates
 ```
+
+### API Routes
+| Route | Method | What it does |
+|---|---|---|
+| `/` | GET | Test server is running |
+| `/incoming-message` | POST | Receives WhatsApp from field worker |
+| `/register-volunteer` | POST | Registers a new volunteer |
+| `/match-volunteers` | POST | Returns top 3 volunteers for a cluster |
+| `/assign-volunteer` | POST | Assigns volunteer to cluster, creates task |
+| `/update-task` | POST | Updates task status |
+| `/sms-reply` | POST | Handles ACCEPT/DONE replies from volunteers |
 
 ### Installation
 ```powershell
@@ -94,8 +140,8 @@ npm install
 | firebase-admin | Connect to Firestore database |
 | express | Backend server |
 | dotenv | Load environment variables |
-| twilio | Receive WhatsApp messages |
-| @google/generative-ai | Gemini AI analysis |
+| twilio | Receive and send WhatsApp messages |
+| @google/generative-ai | Gemini AI (ready, currently using Groq via Person A) |
 | cors | Allow frontend to connect to backend |
 
 ### Environment Variables
@@ -107,19 +153,27 @@ TWILIO_AUTH_TOKEN=your_token_here
 TWILIO_PHONE_NUMBER=your_twilio_number_here
 ```
 
-### Running The Backend
+### Running The Full Backend
+Two servers need to run simultaneously:
+
+Terminal 1 — Person A's AI server:
+```powershell
+cd ai
+.\venv\Scripts\activate
+python app.py
+```
+
+Terminal 2 — Node.js backend:
 ```powershell
 cd backend
 node index.js
 ```
 
-### Exposing Backend With Ngrok
-In a second terminal:
+Terminal 3 — Ngrok:
 ```powershell
 cd backend
 .\ngrok.exe http 3000
 ```
 Copy the https URL → paste in Twilio Sandbox Configuration → When a message comes in → Save
-
 # Alizah
 
