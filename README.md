@@ -45,6 +45,62 @@ install:
 2. pip install groq
 used Nominatim which is OpenStreetMap's geocoder. Works for any location in India or anywhere in the world. No API key, no billing, completely free.
 
+# PULSE X — AI Layer (Person A)
+
+## What I Built
+The brain of PULSE X. Takes any messy field report 
+(WhatsApp, SMS, voice transcript) in any Indian language 
+and turns it into structured, actionable crisis data.
+
+## Files
+| File | What it does |
+|------|-------------|
+| intelligence.py | Reads any report → extracts need type, urgency, location, coordinates |
+| clustering.py | Groups nearby same-type reports into crisis clusters |
+| matching.py | Ranks volunteers by skill + distance + availability |
+| config.py | All settings in one place — change anything here |
+| app.py | Flask server exposing everything as API endpoints |
+| report_generator.py | Generates professional NGO impact reports |
+| seed_data.py | Loads 25 demo reports + 20 volunteers into Firestore |
+
+## How to Run
+```bash
+cd ai
+venv\Scripts\activate
+python app.py
+```
+Runs on http://localhost:5000
+
+## API Endpoints Person B Calls
+| Endpoint | Does what |
+|----------|-----------|
+| POST /analyze | Any text in → structured crisis data out |
+| POST /cluster | Groups reports into clusters |
+| POST /match | Finds best volunteers for a cluster |
+| POST /escalate | Updates urgency scores over time |
+| POST /generate-report | Writes NGO impact report |
+
+## AI Stack
+- Primary: Groq (llama-3.3-70b) — free, fast, great at Hindi/Telugu
+- Fallback: Gemini 2.5 Flash — auto-switches if Groq fails
+
+## .env needed
+```
+GROQ_API_KEY=your_key
+GEMINI_API_KEY=your_key
+```
+
+## What Person C reads from Firestore
+- /clusters → centroid_lat, centroid_lon, combined_urgency, alert_level
+- /reports → summary, need_type, urgency_score, location_lat, location_lng
+- Call POST /generate-report to get NGO report for any cluster
+
+## Demo Data
+```bash
+python seed_data.py seed    # load demo data
+python seed_data.py reset   # fresh start
+```
+
 
 # Zunairah
 # PULSE - Backend Documentation

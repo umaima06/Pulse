@@ -5,6 +5,7 @@ from flask_cors import CORS
 from intelligence import analyze_report, escalate_urgency, get_alert_level
 from clustering import cluster_reports
 from matching import match_volunteers
+from report_generator import generate_cluster_report, generate_pre_alert
 import os
 app = Flask(__name__)
 CORS(app)  # Allows Node.js backend to call this
@@ -154,3 +155,39 @@ if __name__ == '__main__':
     print("  POST /match")
     print("  POST /escalate")
     app.run(host='0.0.0.0', port=port, debug=True)
+    
+@app.route('/generate-report', methods=['POST'])
+def generate_report():
+    """
+    Person C calls this when NGO clicks 'Generate Report' on dashboard.
+    Input:  { "cluster": {...}, "reports": [...] }
+    Output: { "success": true, "report": "...", "metadata": {...} }
+    """
+    body = request.get_json()
+    if not body or 'cluster' not in body:
+        return jsonify({"success": False, "error": "Missing cluster data"}), 400
+    
+    result = generate_cluster_report(
+        cluster=body['cluster'],
+        reports=body.get('reports', [])
+    )
+    return jsonify(result), 200 if result['success'] else 500
+
+
+@app.route('/pre-alert', methods=['POST'])
+def pre_alert():
+    """
+    Generates a predictive warning for a region.
+    Input:  { "region": "...", "need_type": "...", "historical_pattern": "..." }
+    Output: { "success": true, "pre_alert": "..." }
+    """
+    body = request.get_json()
+    if not body:
+        return jsonify({"success": False, "error": "Missing data"}), 400
+    
+    result = generate_pre_alert(
+        region=body.get('region', 'Unknown region'),
+        need_type=body.get('need_type', 'water'),
+        historical_pattern=body.get('historical_pattern', 'Historical shortage patterns detected')
+    )
+    return jsonify(result), 200 if result['success'] else 500
