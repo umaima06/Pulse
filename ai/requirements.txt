@@ -1,0 +1,6 @@
+flask
+flask-cors
+groq
+google-genai
+firebase-admin
+python-dotenv

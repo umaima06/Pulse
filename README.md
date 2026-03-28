@@ -1,9 +1,33 @@
 # Pulse
 PULSE is an AI-powered decision system for NGOs that collects scattered community data, identifies the most urgent needs, and helps allocate volunteers and resources smartly — even without internet access.
 
+# Project Structure 
+PULSE/
+│
+├── backend/                 ← Person B's Node.js lives here
+│   ├── index.js
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── .env
+│   ├── .gitignore
+│   └── serviceAccountKey.json  
+│
+├── ai/                      ← YOUR Python brain lives here
+│   ├── intelligence.py
+│   ├── clustering.py
+│   ├── matching.py
+│   ├── config.py
+│   ├── app.py
+│   ├── requirements.txt
+│   └── .env
+│
+├── frontend/                ← Person C's React dashboard lives here
+│   └── (Person C sets this up)
+│
+└── README.md
 
 # Umaima
-@ day 1:
+@ day 1----
 Step 1 — Get your Gemini API key
 step 2 — Three Python files, all running cleanly:
 intelligence.py — Gemini converts any messy input to structured JSON ✓
@@ -13,6 +37,11 @@ step 3- install :
 1. python -m venv venv, .\venv\Scripts\activate
 2. pip install google-genai
 
+@ day 2----
+install:
+1. pip install flask flask-cors
+2. pip install groq
+used Nominatim which is OpenStreetMap's geocoder. Works for any location in India or anywhere in the world. No API key, no billing, completely free.
 
 
 # Zunairah
