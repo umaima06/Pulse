@@ -1,0 +1,20 @@
+{
+  "name": "pulse",
+  "version": "1.0.0",
+  "description": "PULSE is an AI-powered decision system for NGOs that collects scattered community data, identifies the most urgent needs, and helps allocate volunteers and resources smartly — even without internet access.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/umaima06/Pulse.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/umaima06/Pulse/issues"
+  },
+  "homepage": "https://github.com/umaima06/Pulse#readme"
+}
