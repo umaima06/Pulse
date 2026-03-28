@@ -231,5 +231,58 @@ cd backend
 .\ngrok.exe http 3000
 ```
 Copy the https URL → paste in Twilio Sandbox Configuration → When a message comes in → Save
+
+
 # Alizah
 
+## Frontend (Person C) — React Dashboard
+
+### What I Built
+- React + Vite project setup with Tailwind CSS
+- Firebase Firestore real-time connection
+- Google Maps integration with live cluster visualization
+- 5 pages with shared Navbar and routing
+- Volunteer registration form connected to backend
+
+### Pages Built
+| Page | Route | What it does |
+|---|---|---|
+| Dashboard | `/` | Live Google Map with color-coded crisis clusters |
+| Reports | `/reports` | Live incoming WhatsApp field reports |
+| Tasks | `/tasks` | Volunteer assignment tracker |
+| Volunteers | `/volunteers` | All registered volunteers + availability |
+| Register | `/volunteer` | Volunteer registration form → saves to Firestore via backend |
+
+### Map Features
+- 🔴 Red circles = CRITICAL clusters (urgency 80+)
+- 🟠 Orange circles = HIGH (urgency 50–79)
+- 🟡 Yellow circles = MEDIUM (below 50)
+- Click any circle → side panel shows cluster details, need type, urgency bar
+
+### Installation
+```powershell
+cd frontend
+npm install
+```
+
+### Environment Variables
+Create a `.env` file inside the `frontend` folder:
+```
+VITE_GOOGLE_MAPS_API_KEY=your_key_here
+```
+
+### Running Frontend
+```powershell
+cd frontend
+npm run dev
+```
+Opens at `http://localhost:5173`
+
+### Packages Used
+| Package | Purpose |
+|---|---|
+| react + vite | Frontend framework |
+| react-router-dom | Page routing |
+| firebase | Firestore real-time data |
+| @react-google-maps/api | Google Maps + Circles |
+| tailwindcss | Styling |
