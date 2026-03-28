@@ -406,10 +406,18 @@ async function autoAssignIfUrgent(clusterId) {
         process.env.TWILIO_AUTH_TOKEN
       );
 
+// Send WhatsApp notification
 await twilio.messages.create({
   body: `PULSE ALERT: Urgent ${cluster.need_type} crisis. ${cluster.village_count} villages affected. Urgency: ${cluster.combined_urgency}/100. Reply ACCEPT to confirm.`,
   from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
   to: `whatsapp:${best.phone}`
+});
+
+// Send SMS notification
+await twilio.messages.create({
+  body: `PULSE ALERT: Urgent ${cluster.need_type} crisis. ${cluster.village_count} villages affected. Urgency: ${cluster.combined_urgency}/100. Reply ACCEPT to confirm.`,
+  from: process.env.TWILIO_REAL_NUMBER,
+  to: best.phone
 });
 
       console.log(`📱 SMS sent to ${best.name} at ${best.phone}`);
@@ -472,6 +480,103 @@ app.post('/sms-reply', async (req, res) => {
     res.status(500).send('Error');
   }
 });
+
+// ─── IVR ROUTES ─────────────────────────────────────────────────────
+
+// Field worker gives missed call → Twilio calls back → plays this
+app.post('/incoming-call', (req, res) => {
+  res.set('Content-Type', 'text/xml');
+  res.send(`
+    <Response>
+      <Gather action="/handle-keypress" method="POST" numDigits="1" timeout="10">
+        <Say language="hi-IN" voice="Polly.Aditi">
+          Namaste. PULSE mein aapka swagat hai.
+          Paani ki samasya ke liye 1 dabaiye.
+          Khaane ki samasya ke liye 2 dabaiye.
+          Medical emergency ke liye 3 dabaiye.
+        </Say>
+      </Gather>
+      <Say language="hi-IN">Koi input nahi mila. Phir se call karein.</Say>
+    </Response>
+  `);
+});
+
+// Handle keypress — start recording
+app.post('/handle-keypress', (req, res) => {
+  const digit = req.body.Digits;
+  const needMap = { '1': 'water', '2': 'food', '3': 'medical' };
+  const needType = needMap[digit] || 'water';
+
+  console.log(`📞 IVR keypress: ${digit} → ${needType}`);
+
+  res.set('Content-Type', 'text/xml');
+  res.send(`
+    <Response>
+      <Say language="hi-IN" voice="Polly.Aditi">
+        Aapne ${needType} chunaa. Beep ke baad apni samasya batayein. 30 second hai.
+      </Say>
+      <Record
+        action="/handle-recording?need_type=${needType}"
+        method="POST"
+        maxLength="30"
+        playBeep="true"
+        trim="trim-silence"
+      />
+    </Response>
+  `);
+});
+
+// Handle recording — save to Firestore + send to AI
+app.post('/handle-recording', async (req, res) => {
+  try {
+    const recordingUrl = req.body.RecordingUrl;
+    const callerPhone = req.body.From;
+    const needType = req.query.need_type;
+
+    console.log(`📞 IVR recording from ${callerPhone} | need: ${needType} | url: ${recordingUrl}`);
+
+    // Save to Firestore
+    const docRef = await db.collection('reports').add({
+      raw_text:      `IVR call — ${needType} problem reported`,
+      sender:        callerPhone,
+      need_type:     needType,
+      urgency_score: 0,
+      location_text: '',
+      location_lat:  0,
+      location_lng:  0,
+      language:      'Hindi',
+      summary:       '',
+      source:        'ivr',
+      recording_url: recordingUrl,
+      status:        'new',
+      timestamp:     admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log('✅ IVR report saved!', docRef.id);
+
+    // Send to AI for analysis
+    enrichWithPULSEAI(docRef.id, `${needType} samasya hai, madad chahiye`).catch(console.error);
+
+    res.set('Content-Type', 'text/xml');
+    res.send(`
+      <Response>
+        <Say language="hi-IN" voice="Polly.Aditi">
+          Shukriya. Aapki report darj kar li gayi hai. Jald hi madad bheja jayega.
+        </Say>
+      </Response>
+    `);
+
+  } catch (error) {
+    console.error('❌ IVR recording error:', error);
+    res.set('Content-Type', 'text/xml');
+    res.send(`
+      <Response>
+        <Say>Kuch galat hua. Phir se try karein.</Say>
+      </Response>
+    `);
+  }
+});
+
 // ─── START SERVER ────────────────────────────────────────────────────
 
 const PORT = 3000;
