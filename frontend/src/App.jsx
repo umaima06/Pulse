@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Volunteer from './pages/Volunteer'
+import Volunteers from './pages/Volunteers'
 import Tasks from './pages/Tasks'
 import Reports from './pages/Reports'
-import Volunteers from './pages/Volunteers'
+import NotFound from './pages/NotFound'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/volunteers" element={<Volunteers />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   )

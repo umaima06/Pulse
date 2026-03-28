@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
+import Spinner from '../components/Spinner'
 
 function Reports() {
   const [reports, setReports] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'reports'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setReports(data)
+      setLoading(false)
     })
     return () => unsub()
   }, [])
@@ -25,6 +28,8 @@ function Reports() {
     if (score >= 50) return 'bg-orange-900 border-orange-700'
     return 'bg-yellow-900 border-yellow-700'
   }
+
+  if (loading) return <Spinner text="Loading reports..." />
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">

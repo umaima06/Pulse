@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/umaima06/Pulse/issues"
   },
-  "homepage": "https://github.com/umaima06/Pulse#readme"
+  "homepage": "https://github.com/umaima06/Pulse#readme",
+  "dependencies": {
+    "react-router-dom": "^7.13.2"
+  }
 }

@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
+import Spinner from '../components/Spinner'
 
 function Tasks() {
   const [tasks, setTasks] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'tasks'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setTasks(data)
+      setLoading(false)
     })
     return () => unsub()
   }, [])
@@ -19,6 +22,8 @@ function Tasks() {
     if (status === 'done') return 'bg-green-700 text-green-200'
     return 'bg-yellow-700 text-yellow-200'
   }
+
+  if (loading) return <Spinner text="Loading tasks..." />
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
