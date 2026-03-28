@@ -5,7 +5,6 @@ require('dotenv').config();
 
 const serviceAccount = require('./serviceAccountKey.json');
 
-// Initialize Firebase
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
@@ -13,51 +12,33 @@ admin.initializeApp({
 const db = admin.firestore();
 const app = express();
 
-// Initialize Gemini
-// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-// const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Test route
-app.get('/', (req, res) => {
-  res.send('PULSE backend is running!');
-});
+// ─── HELPER FUNCTIONS ───────────────────────────────────────────────
 
-// // Gemini analysis function
-// async function analyzeReport(rawText) {
-//   const prompt = `
-// You are an AI assistant for PULSE, an NGO crisis management system in India.
-// Analyze this field report and return ONLY a valid JSON object with no extra text, no markdown, no backticks.
+// Distance between two coordinates in km
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
-// Field report: "${rawText}"
+// Skills needed per need type
+const skillMap = {
+  water:   ['water_distribution', 'vehicle', 'logistics'],
+  food:    ['food_distribution', 'vehicle', 'logistics'],
+  medical: ['medical', 'doctor', 'nurse', 'first_aid']
+};
 
-// Return exactly this JSON structure:
-// {
-//   "need_type": "water" or "food" or "medical",
-//   "urgency_score": a number between 1 and 100,
-//   "location": "extracted location name or empty string if not found",
-//   "language": "Hindi" or "Telugu" or "English" or "Mixed",
-//   "summary": "one clear sentence in English describing the problem"
-// }
+// ─── AI ENRICHMENT ──────────────────────────────────────────────────
 
-// Rules:
-// - need_type must be exactly "water", "food", or "medical"
-// - urgency_score: 80-100 for medical emergencies, 60-80 for severe shortages, 40-60 for moderate issues, 1-40 for minor issues
-// - summary must always be in English regardless of input language
-// `;
-
-//   const result = await model.generateContent(prompt);
-//   const text = result.response.text().trim();
-  
-//   // Clean response and parse JSON
-//   const cleaned = text.replace(/```json|```/g, '').trim();
-//   return JSON.parse(cleaned);
-// }
-
-// PULSE AI enrichment — calls Person A's Python server
 async function enrichWithPULSEAI(reportId, rawText) {
   try {
     const res = await fetch('http://localhost:5000/analyze', {
@@ -83,15 +64,14 @@ async function enrichWithPULSEAI(reportId, rawText) {
       location_text:   d.location?.description || '',
       district:        d.location?.district || '',
       state:           d.location?.state || '',
-      location_lat:    coords.lat || 0,      // ← real coordinates now
-      location_lng:    coords.lon || 0,      // ← from Nominatim geocoding
+      location_lat:    coords.lat || 0,
+      location_lng:    coords.lon || 0,
       status:          'analyzed',
       analyzed_at:     admin.firestore.FieldValue.serverTimestamp()
     });
 
     console.log(`✅ Report ${reportId} enriched | Coords: ${coords.lat}, ${coords.lon}`);
 
-    // Trigger clustering only if we have coordinates
     if (!coords.lat) return;
 
     const snapshot = await db.collection('reports')
@@ -128,12 +108,24 @@ async function enrichWithPULSEAI(reportId, rawText) {
     await batch.commit();
     console.log(`✅ ${clusterData.cluster_count} clusters updated`);
 
+    // Auto assign if any cluster is urgent
+for (const cluster of clusterData.clusters) {
+  await autoAssignIfUrgent(cluster.cluster_id);
+}
+
   } catch (err) {
     console.error('❌ PULSE AI failed:', err.message);
   }
 }
 
-// Twilio sends incoming WhatsApp messages here
+// ─── ROUTES ─────────────────────────────────────────────────────────
+
+// Test route
+app.get('/', (req, res) => {
+  res.send('PULSE backend is running!');
+});
+
+// Twilio WhatsApp intake
 app.post('/incoming-message', async (req, res) => {
   try {
     const incomingText = req.body.Body;
@@ -141,54 +133,346 @@ app.post('/incoming-message', async (req, res) => {
 
     console.log(`📩 New message from ${senderNumber}: ${incomingText}`);
 
-    // First save raw message immediately
     const docRef = await db.collection('reports').add({
-      raw_text: incomingText,
-      sender: senderNumber,
-      need_type: '',
+      raw_text:      incomingText,
+      sender:        senderNumber,
+      need_type:     '',
       urgency_score: 0,
       location_text: '',
-      location_lat: 0,
-      location_lng: 0,
-      language: '',
-      summary: '',
-      status: 'new',
-      timestamp: admin.firestore.FieldValue.serverTimestamp()
+      location_lat:  0,
+      location_lng:  0,
+      language:      '',
+      summary:       '',
+      status:        'new',
+      timestamp:     admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log('✅ Raw report saved to Firestore!', docRef.id);
-    // Add this line right after raw report is saved
+    console.log('✅ Raw report saved!', docRef.id);
     enrichWithPULSEAI(docRef.id, incomingText).catch(console.error);
 
-    // // Then analyze with Gemini
-    // console.log('🤖 Sending to Gemini for analysis...');
-    // const analysis = await analyzeReport(incomingText);
-    // console.log('✅ Gemini analysis:', analysis);
-
-    // // Update the same document with Gemini results
-    // await docRef.update({
-    //   need_type: analysis.need_type,
-    //   urgency_score: analysis.urgency_score,
-    //   location_text: analysis.location,
-    //   language: analysis.language,
-    //   summary: analysis.summary,
-    //   status: 'new'
-    // });
-
-    // console.log('✅ Report updated with Gemini analysis!');
-
-    // Send reply back to field worker via WhatsApp
     res.set('Content-Type', 'text/xml');
     res.send(`
       <Response>
-      <Message>PULSE received your report. We are analyzing and coordinating help now.</Message>
+        <Message>PULSE received your report. We are analyzing and coordinating help now.</Message>
       </Response>
     `);
+
   } catch (error) {
     console.error('❌ Error:', error);
     res.status(500).send('Error processing message');
   }
 });
+
+// Volunteer registration — Person C's form posts here
+app.post('/register-volunteer', async (req, res) => {
+  try {
+    const { name, email, skills, location_lat, location_lng, location_text, phone } = req.body;
+
+    const docRef = await db.collection('volunteers').add({
+      name,
+      email,
+      skills,              // array like ['vehicle', 'water_distribution']
+      location_lat,
+      location_lng,
+      location_text,
+      phone: phone || '',
+      available:        true,
+      assigned_task_id: '',
+      registered_at:    admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ Volunteer registered: ${name} | ID: ${docRef.id}`);
+    res.json({ success: true, volunteer_id: docRef.id });
+
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+// Match volunteers to a cluster
+app.post('/match-volunteers', async (req, res) => {
+  try {
+    const { cluster_id } = req.body;
+
+    const clusterDoc = await db.collection('clusters').doc(cluster_id).get();
+    if (!clusterDoc.exists) {
+      return res.status(404).json({ error: 'Cluster not found' });
+    }
+
+    const cluster = clusterDoc.data();
+    const requiredSkills = skillMap[cluster.need_type] || [];
+
+    const volunteersSnapshot = await db.collection('volunteers')
+      .where('available', '==', true)
+      .get();
+
+    if (volunteersSnapshot.empty) {
+      return res.json({ matches: [], message: 'No volunteers available' });
+    }
+
+    const scored = [];
+    volunteersSnapshot.forEach(doc => {
+      const v = doc.data();
+      const hasSkill = v.skills?.some(s => requiredSkills.includes(s));
+      if (!hasSkill) return;
+
+      const distance = calculateDistance(
+        cluster.centroid_lat,
+        cluster.centroid_lon,
+        v.location_lat,
+        v.location_lng
+      );
+
+      scored.push({
+        volunteer_id:  doc.id,
+        name:          v.name,
+        skills:        v.skills,
+        location_text: v.location_text,
+        distance_km:   Math.round(distance * 10) / 10
+      });
+    });
+
+    scored.sort((a, b) => a.distance_km - b.distance_km);
+    const top3 = scored.slice(0, 3);
+
+    console.log(`✅ Found ${top3.length} volunteers for cluster ${cluster_id}`);
+    res.json({ cluster_id, need_type: cluster.need_type, matches: top3 });
+
+  } catch (error) {
+    console.error('❌ Matching error:', error);
+    res.status(500).json({ error: 'Matching failed' });
+  }
+});
+
+// Assign volunteer to cluster — creates a task
+app.post('/assign-volunteer', async (req, res) => {
+  try {
+    const { cluster_id, volunteer_id } = req.body;
+
+    const clusterDoc = await db.collection('clusters').doc(cluster_id).get();
+    const volunteerDoc = await db.collection('volunteers').doc(volunteer_id).get();
+
+    if (!clusterDoc.exists || !volunteerDoc.exists) {
+      return res.status(404).json({ error: 'Cluster or volunteer not found' });
+    }
+
+    const cluster = clusterDoc.data();
+    const volunteer = volunteerDoc.data();
+
+    const taskRef = await db.collection('tasks').add({
+      cluster_id,
+      volunteer_id,
+      need_type:      cluster.need_type,
+      location_text:  cluster.need_type,
+      location_lat:   cluster.centroid_lat,
+      location_lng:   cluster.centroid_lon,
+      volunteer_name: volunteer.name,
+      status:         'assigned',
+      timestamp:      admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    await db.collection('volunteers').doc(volunteer_id).update({
+      available:        false,
+      assigned_task_id: taskRef.id
+    });
+
+    console.log(`✅ Task ${taskRef.id} — ${volunteer.name} assigned to cluster ${cluster_id}`);
+    res.json({ success: true, task_id: taskRef.id });
+
+  } catch (error) {
+    console.error('❌ Assignment error:', error);
+    res.status(500).json({ error: 'Assignment failed' });
+  }
+});
+
+// Task status update — volunteer accepts or completes
+app.post('/update-task', async (req, res) => {
+  try {
+    const { task_id, status } = req.body;  // status: 'accepted' or 'done'
+
+    await db.collection('tasks').doc(task_id).update({ status });
+
+    // If done, mark volunteer available again
+    if (status === 'done') {
+      const taskDoc = await db.collection('tasks').doc(task_id).get();
+      const volunteer_id = taskDoc.data().volunteer_id;
+      await db.collection('volunteers').doc(volunteer_id).update({
+        available:        true,
+        assigned_task_id: ''
+      });
+      console.log(`✅ Task ${task_id} completed — volunteer freed`);
+    }
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('❌ Task update error:', error);
+    res.status(500).json({ error: 'Update failed' });
+  }
+});
+
+// Auto task creation — fires when cluster urgency crosses 80
+async function autoAssignIfUrgent(clusterId) {
+  try {
+    const clusterDoc = await db.collection('clusters').doc(clusterId).get();
+    if (!clusterDoc.exists) return;
+
+    const cluster = clusterDoc.data();
+
+    // Only auto-assign if urgency is 80+ and not already assigned
+    if (cluster.combined_urgency < 80) return;
+    if (cluster.auto_assigned) return;
+
+    console.log(`🚨 Cluster ${clusterId} urgency ${cluster.combined_urgency} — auto assigning...`);
+
+    // Find best volunteer
+    const requiredSkills = skillMap[cluster.need_type] || [];
+    const volunteersSnapshot = await db.collection('volunteers')
+      .where('available', '==', true)
+      .get();
+
+    if (volunteersSnapshot.empty) {
+      console.log('⚠️ No volunteers available for auto assignment');
+      return;
+    }
+
+    // Score volunteers
+    const scored = [];
+    volunteersSnapshot.forEach(doc => {
+      const v = doc.data();
+      const hasSkill = v.skills?.some(s => requiredSkills.includes(s));
+      if (!hasSkill) return;
+
+      const distance = calculateDistance(
+        cluster.centroid_lat,
+        cluster.centroid_lon,
+        v.location_lat,
+        v.location_lng
+      );
+
+      scored.push({
+        volunteer_id:  doc.id,
+        name:          v.name,
+        skills:        v.skills,
+        location_text: v.location_text,
+        phone:         v.phone || null,
+        distance_km:   Math.round(distance * 10) / 10
+      });
+    });
+
+    if (scored.length === 0) {
+      console.log('⚠️ No skilled volunteers available');
+      return;
+    }
+
+    // Pick closest
+    scored.sort((a, b) => a.distance_km - b.distance_km);
+    const best = scored[0];
+
+    // Create task
+    const taskRef = await db.collection('tasks').add({
+      cluster_id:     clusterId,
+      volunteer_id:   best.volunteer_id,
+      need_type:      cluster.need_type,
+      location_text:  cluster.need_type,
+      location_lat:   cluster.centroid_lat,
+      location_lng:   cluster.centroid_lon,
+      volunteer_name: best.name,
+      status:         'assigned',
+      auto_assigned:  true,
+      timestamp:      admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Mark volunteer unavailable
+    await db.collection('volunteers').doc(best.volunteer_id).update({
+      available:        false,
+      assigned_task_id: taskRef.id
+    });
+
+    // Mark cluster as assigned
+    await db.collection('clusters').doc(clusterId).update({
+      auto_assigned: true,
+      assigned_volunteer_id: best.volunteer_id,
+      assigned_task_id: taskRef.id
+    });
+
+    console.log(`✅ Auto assigned ${best.name} to cluster ${clusterId}`);
+
+    // Send SMS notification to volunteer
+    if (best.phone) {
+      const twilio = require('twilio')(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      );
+
+await twilio.messages.create({
+  body: `PULSE ALERT: Urgent ${cluster.need_type} crisis. ${cluster.village_count} villages affected. Urgency: ${cluster.combined_urgency}/100. Reply ACCEPT to confirm.`,
+  from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+  to: `whatsapp:${best.phone}`
+});
+
+      console.log(`📱 SMS sent to ${best.name} at ${best.phone}`);
+    } else {
+      console.log(`⚠️ No phone number for ${best.name} — skipping SMS`);
+    }
+
+  } catch (err) {
+    console.error('❌ Auto assign failed:', err.message);
+  }
+}
+
+// Volunteer replies ACCEPT or DONE via SMS
+app.post('/sms-reply', async (req, res) => {
+  try {
+    const reply = req.body.Body?.trim().toUpperCase();
+    const senderPhone = req.body.From;
+
+    console.log(`📱 SMS reply from ${senderPhone}: ${reply}`);
+
+    if (reply === 'ACCEPT' || reply === 'DONE') {
+      // Find volunteer by phone number
+      const volunteerSnapshot = await db.collection('volunteers')
+        .where('phone', '==', senderPhone)
+        .get();
+
+      if (volunteerSnapshot.empty) {
+        console.log('⚠️ Volunteer not found for phone:', senderPhone);
+        return res.send('<Response></Response>');
+      }
+
+      const volunteerDoc = volunteerSnapshot.docs[0];
+      const volunteer = volunteerDoc.data();
+      const taskId = volunteer.assigned_task_id;
+
+      if (!taskId) {
+        return res.send('<Response></Response>');
+      }
+
+      if (reply === 'ACCEPT') {
+        await db.collection('tasks').doc(taskId).update({ status: 'accepted' });
+        console.log(`✅ ${volunteer.name} accepted task ${taskId}`);
+      }
+
+      if (reply === 'DONE') {
+        await db.collection('tasks').doc(taskId).update({ status: 'done' });
+        await db.collection('volunteers').doc(volunteerDoc.id).update({
+          available:        true,
+          assigned_task_id: ''
+        });
+        console.log(`✅ ${volunteer.name} completed task ${taskId}`);
+      }
+    }
+
+    res.set('Content-Type', 'text/xml');
+    res.send('<Response></Response>');
+
+  } catch (error) {
+    console.error('❌ SMS reply error:', error);
+    res.status(500).send('Error');
+  }
+});
+// ─── START SERVER ────────────────────────────────────────────────────
 
 const PORT = 3000;
 app.listen(PORT, () => {
