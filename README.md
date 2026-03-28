@@ -26,7 +26,7 @@ step 3- install :
 - Twilio WhatsApp intake pipeline
 - Gemini AI integration (ready, needs API key from Person A)
 
-### Day 1-2
+### Day 1
 - Set up Firebase project with Firestore database
 - Created 4 Firestore collections: `reports`, `volunteers`, `clusters`, `tasks`
 - Built Express.js backend server running on port 3000
