@@ -13,6 +13,7 @@ function Navbar() {
     { path: '/volunteers', label: '👥 Volunteers' },
     { path: '/intake', label: '📝 Intake' },
     { path: '/volunteer', label: '🙋 Register' },
+    { path: '/my-tasks', label: '📌 My Tasks' },
   ]
 
   const handleLogout = async () => {

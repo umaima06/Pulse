@@ -7,6 +7,7 @@ import Volunteers from './pages/Volunteers'
 import Tasks from './pages/Tasks'
 import Reports from './pages/Reports'
 import Intake from './pages/Intake'
+import VolunteerPortal from './pages/VolunteerPortal'
 import NotFound from './pages/NotFound'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -22,6 +23,7 @@ function App() {
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/intake" element={<ProtectedRoute><Intake /></ProtectedRoute>} />
         <Route path="/volunteer" element={<Volunteer />} />
+        <Route path="/my-tasks" element={<VolunteerPortal />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
