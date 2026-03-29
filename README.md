@@ -20,7 +20,10 @@ PULSE/
 │   ├── clustering.py              ← Groups nearby reports into clusters
 │   ├── matching.py                ← Volunteer skill + distance matching
 │   ├── config.py                  ← AI configuration
+│   ├── report_generator.py
 │   ├── requirements.txt           ← Python dependencies
+│   ├── seed_data.py
+│   ├── TECHNICAL_DOCS.md
 │   └── .env                       ← Groq API key (not on GitHub)
 │
 ├── frontend/                      ← Person C — React dashboard
@@ -47,10 +50,35 @@ used Nominatim which is OpenStreetMap's geocoder. Works for any location in Indi
 
 # PULSE X — AI Layer (Person A)
 
-## What I Built
-The brain of PULSE X. Takes any messy field report 
-(WhatsApp, SMS, voice transcript) in any Indian language 
-and turns it into structured, actionable crisis data.
+
+## What This Does
+
+Takes any field report — a WhatsApp message in Telugu, a Hindi voice 
+transcript, a vague SMS — and automatically:
+
+1. Understands what crisis it is (water / food / medical)
+2. Scores how urgent it is (1–100)
+3. Finds the real coordinates of the location anywhere in India
+4. Groups nearby same-type reports into crisis clusters
+5. Matches the best available volunteer to each cluster
+6. Writes a professional NGO impact report
+
+Zero manual work. Fully automatic.
+
+---
+
+## Tech Stack
+
+| Tool | Purpose |
+|------|---------|
+| Python 3.x | Core language |
+| Groq (llama-3.3-70b) | Primary AI — analysis + report writing |
+| Gemini 2.5 Flash | Auto fallback if Groq fails |
+| OpenStreetMap Nominatim | Free geocoding — any location in India |
+| Flask | API server (port 5000) |
+| Firebase Firestore | Database |
+
+---
 
 ## Files
 | File | What it does |
@@ -63,32 +91,71 @@ and turns it into structured, actionable crisis data.
 | report_generator.py | Generates professional NGO impact reports |
 | seed_data.py | Loads 25 demo reports + 20 volunteers into Firestore |
 
-## How to Run
+### Installation
+
+**1. Navigate to the ai folder**
 ```bash
 cd ai
+```
+
+**2. Create and activate virtual environment**
+```bash
+# Create
+python -m venv venv
+
+# Activate — Windows
 venv\Scripts\activate
+
+# Activate — Mac/Linux
+source venv/bin/activate
+```
+
+**3. Install dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+**4. Create your .env file**
+```
+GROQ_API_KEY=your_groq_key_here
+GEMINI_API_KEY=your_gemini_key_here
+```
+
+Get Groq key free → console.groq.com  
+Get Gemini key free → aistudio.google.com/apikey
+
+**5. Add serviceAccountKey.json**
+
+Make sure `../backend/serviceAccountKey.json` exists.  
+(Person B shares this — never commit it to GitHub)
+
+---
+
+## Running the Server
+```bash
 python app.py
 ```
-Runs on http://localhost:5000
 
-## API Endpoints Person B Calls
-| Endpoint | Does what |
-|----------|-----------|
-| POST /analyze | Any text in → structured crisis data out |
-| POST /cluster | Groups reports into clusters |
-| POST /match | Finds best volunteers for a cluster |
-| POST /escalate | Updates urgency scores over time |
-| POST /generate-report | Writes NGO impact report |
+Server starts at: http://localhost:5000  
+Health check: http://localhost:5000/health
 
-## AI Stack
-- Primary: Groq (llama-3.3-70b) — free, fast, great at Hindi/Telugu
-- Fallback: Gemini 2.5 Flash — auto-switches if Groq fails
+> Keep this running alongside Person B's Node server (port 3000)
 
-## .env needed
-```
-GROQ_API_KEY=your_key
-GEMINI_API_KEY=your_key
-```
+---
+
+## API Endpoints
+
+| Method | Endpoint | What it does |
+|--------|----------|-------------|
+| GET | /health | Check server is running |
+| POST | /analyze | Any text → structured crisis data + coordinates |
+| POST | /cluster | Array of reports → grouped clusters |
+| POST | /match | Cluster + volunteers → ranked matches |
+| POST | /escalate | Recalculates urgency for unresponded reports |
+| POST | /generate-report | Cluster data → 3-paragraph NGO report |
+| POST | /pre-alert | Region + pattern → predictive warning |
+
+---
 
 ## What Person C reads from Firestore
 - /clusters → centroid_lat, centroid_lon, combined_urgency, alert_level
