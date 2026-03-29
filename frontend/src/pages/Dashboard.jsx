@@ -55,7 +55,6 @@ function Dashboard() {
       const clusterReports = reportsSnap.docs
         .filter(doc => (cluster.report_ids || []).includes(doc.id))
         .map(doc => doc.data())
-
       const res = await fetch('http://localhost:5000/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -64,7 +63,7 @@ function Dashboard() {
       const data = await res.json()
       setReportText(data.report)
     } catch {
-      setReportText('Could not generate report. Make sure the AI server is running on port 5000.')
+      setReportText('Could not generate report. Make sure AI server is running on port 5000.')
     }
     setReportLoading(false)
   }
@@ -80,43 +79,34 @@ function Dashboard() {
       <Navbar />
 
       {/* Stats Bar */}
-      <div className="flex gap-4 px-6 py-3 bg-gray-800 border-b border-gray-700 overflow-x-auto">
-        <div className="bg-red-900 px-4 py-2 rounded-lg flex-shrink-0">
-          <p className="text-red-300 text-xs">CRITICAL</p>
-          <p className="text-white font-bold text-xl">{clusters.filter(c => c.combined_urgency >= 80).length}</p>
-        </div>
-        <div className="bg-orange-900 px-4 py-2 rounded-lg flex-shrink-0">
-          <p className="text-orange-300 text-xs">HIGH</p>
-          <p className="text-white font-bold text-xl">{clusters.filter(c => c.combined_urgency >= 50 && c.combined_urgency < 80).length}</p>
-        </div>
-        <div className="bg-yellow-900 px-4 py-2 rounded-lg flex-shrink-0">
-          <p className="text-yellow-300 text-xs">MEDIUM</p>
-          <p className="text-white font-bold text-xl">{clusters.filter(c => c.combined_urgency < 50).length}</p>
-        </div>
-        <div className="bg-gray-700 px-4 py-2 rounded-lg flex-shrink-0">
-          <p className="text-gray-300 text-xs">TOTAL CLUSTERS</p>
-          <p className="text-white font-bold text-xl">{clusters.length}</p>
-        </div>
-        <div className="bg-blue-900 px-4 py-2 rounded-lg flex-shrink-0">
-          <p className="text-blue-300 text-xs">TOTAL REPORTS</p>
-          <p className="text-white font-bold text-xl">{reports.length}</p>
-        </div>
+      <div className="flex gap-3 px-4 md:px-6 py-3 bg-gray-800 border-b border-gray-700 overflow-x-auto">
+        {[
+          { label: 'CRITICAL', value: clusters.filter(c => c.combined_urgency >= 80).length, bg: 'bg-red-900', text: 'text-red-300' },
+          { label: 'HIGH', value: clusters.filter(c => c.combined_urgency >= 50 && c.combined_urgency < 80).length, bg: 'bg-orange-900', text: 'text-orange-300' },
+          { label: 'MEDIUM', value: clusters.filter(c => c.combined_urgency < 50).length, bg: 'bg-yellow-900', text: 'text-yellow-300' },
+          { label: 'CLUSTERS', value: clusters.length, bg: 'bg-gray-700', text: 'text-gray-300' },
+          { label: 'REPORTS', value: reports.length, bg: 'bg-blue-900', text: 'text-blue-300' },
+        ].map(stat => (
+          <div key={stat.label} className={"px-4 py-2 rounded-lg flex-shrink-0 " + stat.bg}>
+            <p className={"text-xs " + stat.text}>{stat.label}</p>
+            <p className="text-white font-bold text-xl">{stat.value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Map + Panels */}
       <div className="flex flex-1 overflow-hidden">
-
-        {/* Map */}
         <div className="flex-1 relative">
           <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={5}>
             {clusters.map(cluster => (
               cluster.centroid_lat && cluster.centroid_lon ? (
                 <span key={cluster.id}>
+                  {/* Pulse glow for critical */}
                   {cluster.combined_urgency >= 80 && (
                     <Circle
                       center={{ lat: cluster.centroid_lat, lng: cluster.centroid_lon }}
-                      radius={40000}
-                      options={{ strokeColor: '#ef4444', strokeOpacity: 0.1, fillColor: '#ef4444', fillOpacity: 0.08 }}
+                      radius={50000}
+                      options={{ strokeColor: '#ef4444', strokeOpacity: 0.15, fillColor: '#ef4444', fillOpacity: 0.06 }}
                     />
                   )}
                   <Circle
@@ -129,35 +119,35 @@ function Dashboard() {
               ) : null
             ))}
           </GoogleMap>
-          <button
-            onClick={() => setShowFeed(!showFeed)}
-            className="absolute bottom-4 left-4 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm border border-gray-600 hover:bg-gray-700"
-          >
+
+          <button onClick={() => setShowFeed(!showFeed)}
+            className="absolute bottom-4 left-4 bg-gray-800 bg-opacity-90 text-white px-4 py-2 rounded-lg text-sm border border-gray-600 hover:bg-gray-700 transition-all">
             {showFeed ? '📋 Hide Feed' : '📋 Show Feed'}
           </button>
         </div>
 
         {/* Live Feed */}
         {showFeed && !selected && (
-          <div className="w-80 bg-gray-800 overflow-y-auto border-l border-gray-700">
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+          <div className="w-72 md:w-80 bg-gray-800 overflow-y-auto border-l border-gray-700 flex flex-col">
+            <div className="p-4 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
               <h2 className="text-white font-bold">📡 Live Feed</h2>
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
             </div>
-            <div className="divide-y divide-gray-700">
+            <div className="divide-y divide-gray-700 overflow-y-auto">
               {reports.length === 0 ? (
-                <p className="text-gray-400 text-sm p-4">No reports yet...</p>
+                <div className="p-6 text-center">
+                  <p className="text-gray-500 text-sm">No reports yet...</p>
+                </div>
               ) : reports.map(report => (
-                <div key={report.id} className="p-4 hover:bg-gray-700">
+                <div key={report.id} className="p-4 hover:bg-gray-700 transition-colors">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-orange-400 text-xs capitalize font-medium">{report.need_type || 'Unknown'}</span>
-                    <span className={`text-xs font-bold ${report.urgency_score >= 80 ? 'text-red-400' : report.urgency_score >= 50 ? 'text-orange-400' : 'text-yellow-400'}`}>
+                    <span className={"text-xs font-bold " + (report.urgency_score >= 80 ? 'text-red-400' : report.urgency_score >= 50 ? 'text-orange-400' : 'text-yellow-400')}>
                       {report.urgency_score || '?'}
                     </span>
                   </div>
-                  {report.summary && <p className="text-gray-300 text-xs">{report.summary}</p>}
-                  {report.raw_message && <p className="text-gray-500 text-xs italic mt-1">"{report.raw_message?.slice(0, 60)}..."</p>}
-                  {report.location_lat && <p className="text-gray-600 text-xs mt-1">📍 {report.location_lat?.toFixed(3)}, {report.location_lng?.toFixed(3)}</p>}
+                  {report.summary && <p className="text-gray-300 text-xs leading-relaxed">{report.summary}</p>}
+                  {report.raw_message && <p className="text-gray-500 text-xs italic mt-1 truncate">"{report.raw_message}"</p>}
                 </div>
               ))}
             </div>
@@ -166,47 +156,41 @@ function Dashboard() {
 
         {/* Cluster Detail Panel */}
         {selected && (
-          <div className="w-80 bg-gray-800 overflow-y-auto border-l border-gray-700">
+          <div className="w-72 md:w-80 bg-gray-800 overflow-y-auto border-l border-gray-700">
             <div className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-white font-bold text-lg">Cluster Details</h2>
-                <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-white text-xl">✕</button>
+                <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">✕</button>
               </div>
-              <div className={`inline-block px-3 py-1 rounded-full text-white text-sm font-bold mb-4 ${getLabel(selected.combined_urgency).bg}`}>
+              <div className={"inline-block px-3 py-1 rounded-full text-white text-sm font-bold mb-4 " + getLabel(selected.combined_urgency).bg}>
                 {getLabel(selected.combined_urgency).text} — {selected.combined_urgency}/100
               </div>
               <div className="space-y-3">
-                <div className="bg-gray-700 rounded-lg p-3">
-                  <p className="text-gray-400 text-xs mb-1">NEED TYPE</p>
-                  <p className="text-white font-medium capitalize">{selected.need_type || 'Unknown'}</p>
-                </div>
-                <div className="bg-gray-700 rounded-lg p-3">
-                  <p className="text-gray-400 text-xs mb-1">REPORTS IN CLUSTER</p>
-                  <p className="text-white font-medium">{selected.report_count || 1}</p>
-                </div>
-                <div className="bg-gray-700 rounded-lg p-3">
-                  <p className="text-gray-400 text-xs mb-1">LOCATION</p>
-                  <p className="text-white font-medium text-sm">{selected.centroid_lat?.toFixed(4)}, {selected.centroid_lon?.toFixed(4)}</p>
-                </div>
+                {[
+                  { label: 'NEED TYPE', value: selected.need_type || 'Unknown' },
+                  { label: 'REPORTS IN CLUSTER', value: selected.report_count || 1 },
+                  { label: 'LOCATION', value: (selected.centroid_lat?.toFixed(4) || '') + ', ' + (selected.centroid_lon?.toFixed(4) || '') },
+                ].map(item => (
+                  <div key={item.label} className="bg-gray-700 rounded-lg p-3">
+                    <p className="text-gray-400 text-xs mb-1">{item.label}</p>
+                    <p className="text-white font-medium capitalize text-sm">{item.value}</p>
+                  </div>
+                ))}
                 {selected.summary && (
                   <div className="bg-gray-700 rounded-lg p-3">
                     <p className="text-gray-400 text-xs mb-1">SUMMARY</p>
-                    <p className="text-white text-sm">{selected.summary}</p>
+                    <p className="text-white text-sm leading-relaxed">{selected.summary}</p>
                   </div>
                 )}
               </div>
               <div className="mt-4">
                 <p className="text-gray-400 text-xs mb-2">URGENCY LEVEL</p>
                 <div className="w-full bg-gray-600 rounded-full h-3">
-                  <div className="h-3 rounded-full transition-all" style={{ width: `${selected.combined_urgency}%`, backgroundColor: getColor(selected.combined_urgency) }} />
+                  <div className="h-3 rounded-full transition-all duration-500" style={{ width: selected.combined_urgency + '%', backgroundColor: getColor(selected.combined_urgency) }} />
                 </div>
               </div>
-
-              {/* Generate Report Button */}
-              <button
-                onClick={() => generateReport(selected)}
-                className="mt-5 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all"
-              >
+              <button onClick={() => generateReport(selected)}
+                className="mt-5 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105">
                 📄 Generate AI Report
               </button>
             </div>
@@ -216,12 +200,12 @@ function Dashboard() {
 
       {/* Report Modal */}
       {showReportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl w-full max-w-2xl max-h-screen overflow-y-auto border border-gray-700">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-white font-bold text-xl">📄 AI Generated Report</h2>
-                <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-white text-2xl">✕</button>
+                <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-white text-2xl w-8 h-8 flex items-center justify-center">✕</button>
               </div>
               {reportLoading ? (
                 <div className="flex flex-col items-center py-12">
@@ -230,13 +214,11 @@ function Dashboard() {
                 </div>
               ) : (
                 <>
-                  <div className="bg-gray-900 rounded-lg p-5 text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
+                  <div className="bg-gray-900 rounded-xl p-5 text-gray-200 text-sm leading-relaxed whitespace-pre-wrap border border-gray-700">
                     {reportText}
                   </div>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(reportText)}
-                    className="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm"
-                  >
+                  <button onClick={() => navigator.clipboard.writeText(reportText)}
+                    className="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm transition-all">
                     📋 Copy to Clipboard
                   </button>
                 </>
