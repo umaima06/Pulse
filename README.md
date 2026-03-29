@@ -234,30 +234,44 @@ Copy the https URL → paste in Twilio Sandbox Configuration → When a message 
 
 
 # Alizah
-
 ## Frontend (Person C) — React Dashboard
 
 ### What I Built
 - React + Vite project setup with Tailwind CSS
 - Firebase Firestore real-time connection
 - Google Maps integration with live cluster visualization
-- 5 pages with shared Navbar and routing
+- Landing page, Login page, and 6 core pages with shared Navbar
 - Volunteer registration form connected to backend
+- Live feed sidebar with real-time incoming reports
+- Cluster detail side panel with AI report generation button
+- Manual report intake form for NGO coordinators
+- 404 Not Found page + loading spinners
 
 ### Pages Built
 | Page | Route | What it does |
 |---|---|---|
-| Dashboard | `/` | Live Google Map with color-coded crisis clusters |
-| Reports | `/reports` | Live incoming WhatsApp field reports |
-| Tasks | `/tasks` | Volunteer assignment tracker |
-| Volunteers | `/volunteers` | All registered volunteers + availability |
+| Landing | `/` | Hero page — what PULSE is, how it works, stats |
+| Login | `/login` | Demo login → redirects to dashboard |
+| Dashboard | `/dashboard` | Live Google Map + color-coded crisis clusters + live feed |
+| Reports | `/reports` | Live incoming WhatsApp field reports with urgency scores |
+| Tasks | `/tasks` | Volunteer assignment tracker — pending, accepted, done |
+| Volunteers | `/volunteers` | All registered volunteers + available/busy status |
+| Intake | `/intake` | NGO coordinator manually logs a crisis report |
 | Register | `/volunteer` | Volunteer registration form → saves to Firestore via backend |
 
 ### Map Features
-- 🔴 Red circles = CRITICAL clusters (urgency 80+)
+- 🔴 Red circles = CRITICAL clusters (urgency 80+) with glow effect
 - 🟠 Orange circles = HIGH (urgency 50–79)
 - 🟡 Yellow circles = MEDIUM (below 50)
 - Click any circle → side panel shows cluster details, need type, urgency bar
+- 📄 Generate AI Report button → calls Person A's Flask `/generate-report` endpoint
+- 📡 Live Feed sidebar → real-time incoming reports from Firestore
+
+### Components Built
+| Component | What it does |
+|---|---|
+| Navbar | Shared navbar with active link highlighting across all pages |
+| Spinner | Loading state shown while Firestore data loads |
 
 ### Installation
 ```powershell
@@ -278,6 +292,12 @@ npm run dev
 ```
 Opens at `http://localhost:5173`
 
+### Demo Login
+```
+Email: ngo@pulse.ai
+Password: pulse123
+```
+
 ### Packages Used
 | Package | Purpose |
 |---|---|
@@ -286,3 +306,24 @@ Opens at `http://localhost:5173`
 | firebase | Firestore real-time data |
 | @react-google-maps/api | Google Maps + Circles |
 | tailwindcss | Styling |
+
+### What's Left (pending Person B — Firestore rules fix)
+- Volunteers, Reports, Tasks pages show live data once Firebase rules are set to allow read
+- Generate Report modal works once Person A's Flask server is running on port 5000
+- Volunteer registration form saves once backend is running on port 3000
+
+### Running The Full System
+```powershell
+# Terminal 1 — AI server (Person A)
+cd ai
+.\venv\Scripts\activate
+python app.py
+
+# Terminal 2 — Backend (Person B)
+cd backend
+node index.js
+
+# Terminal 3 — Frontend (Person C)
+cd frontend
+npm run dev
+```
