@@ -108,81 +108,139 @@ python seed_data.py reset   # fresh start
 
 ### What I Built
 - Firebase + Firestore database setup with 4 collections
-- Express.js backend server
-- Twilio WhatsApp intake pipeline
-- Volunteer registration, matching and auto-assignment system
-- Automatic task creation and tracking
-- SMS/WhatsApp notification to volunteers
+- Express.js backend server running on port 3000
+- Twilio WhatsApp + SMS dual intake pipeline
+- IVR voice intake system in Hindi
+- Volunteer registration, geocoding, matching and auto-assignment
+- Automatic task creation, tracking and status updates
+- WhatsApp + SMS dual notifications to volunteers
+- NGO registration and authentication system
+- Hourly urgency escalation scheduler
+- Analytics endpoint
+- AI report generation proxy
+- Demo trigger for live demonstrations
+
+---
 
 ### Day 1
-- Set up Firebase project with Firestore database
+- Set up Firebase project with Firestore database on personal Google account
 - Created 4 Firestore collections: `reports`, `volunteers`, `clusters`, `tasks`
 - Built Express.js backend server running on port 3000
 - Integrated Twilio WhatsApp sandbox
-- Built `/incoming-message` route that:
+- Built `/incoming-message` route:
   - Receives WhatsApp messages from field workers
   - Saves raw message to Firestore instantly
   - Calls Person A's Flask AI server for analysis
-  - Updates Firestore document with need_type, urgency_score, language, summary, real coordinates
+  - Updates Firestore with need_type, urgency_score, language, summary, real coordinates
   - Triggers clustering automatically after each report
   - Replies to field worker confirming receipt
 - Built `/register-volunteer` route:
-  - Accepts volunteer name, email, skills, location, phone
+  - Accepts name, email, skills, location, phone
   - Saves to Firestore `/volunteers` collection
 - Built `/match-volunteers` route:
   - Takes a cluster_id
   - Finds all available volunteers with matching skills
-  - Calculates distance from volunteer to cluster using Haversine formula
+  - Calculates distance using Haversine formula
   - Returns top 3 closest matching volunteers
 - Built `/assign-volunteer` route:
-  - Assigns a specific volunteer to a cluster
-  - Creates a task in `/tasks` collection
+  - Assigns volunteer to cluster
+  - Creates task in `/tasks` collection
   - Marks volunteer as unavailable
 - Built `/update-task` route:
-  - Volunteer marks task as accepted or done
+  - Volunteer marks task accepted or done
   - Frees volunteer back up when done
 - Built auto-assignment system:
   - When cluster urgency crosses 80/100 → automatically finds best volunteer
-  - Creates task in Firestore without any human input
+  - Creates task in Firestore without human input
   - Sends WhatsApp notification to volunteer
 - Built `/sms-reply` route:
-  - Volunteer replies ACCEPT → task status updates to accepted
-  - Volunteer replies DONE → task marked complete, volunteer freed up
+  - Volunteer replies ACCEPT → task status updates
+  - Volunteer replies DONE → task complete, volunteer freed
+    
+- Bought real Twilio US number for SMS and Voice/IVR
+- Built dual notification system — volunteers receive both WhatsApp AND SMS simultaneously
+- Built IVR voice intake system:
+  - Field worker calls PULSE number
+  - System calls back with Hindi voice menu
+  - Worker presses 1 (water), 2 (food), 3 (medical)
+  - Records 30 second voice report
+  - Saved to Firestore with `source: ivr`
+  - Sent to AI for analysis automatically
+- Built `/incoming-call` route — handles incoming voice calls via TwiML
+- Built `/handle-keypress` route — processes IVR menu selection
+- Built `/handle-recording` route — saves voice recording to Firestore
+- Fixed Firestore composite index for cluster queries
 
-### How The Pipeline Works
+  ---
+  ### Day 2
+  
+- Connected frontend endpoints — verified all routes match Person C's calls
+- Fixed skillMap to match frontend skill options
+- Added volunteer location geocoding — text like "Hyderabad" auto-converts to real coordinates via OpenStreetMap Nominatim
+- Updated `/incoming-message` to handle volunteer WhatsApp replies:
+  - Volunteer replies ACCEPT → task confirmed, instructions sent back via WhatsApp
+  - Volunteer replies DONE → task completed, volunteer freed up
+  - Volunteer replies DECLINE → task reassigned, volunteer freed up
+- Added NGO registration with Firebase Auth (`/register-ngo`)
+- Added NGO login with custom token (`/login-ngo`)
+- Added token verification middleware for protected routes
+- Added hourly urgency escalation scheduler — runs automatically every hour
+- Added `/analytics` endpoint — full system stats (reports, volunteers, clusters, tasks)
+- Added `/generate-report` proxy — fetches cluster data, calls Person A's AI report generator
+- Added `/demo-trigger` endpoint — fires 3 realistic demo reports automatically for live demo
+
+---
+
+### How The Full Pipeline Works
 ```
-Field Worker sends WhatsApp message
+Field Worker intake — three methods:
+  1. WhatsApp message → (sandbox number)
+  2. SMS → (real number)
+  3. Voice/IVR call → real number → Hindi menu → record problem
         ↓
-Twilio receives it
+Express server receives
         ↓
-Sent to Express server (/incoming-message)
-        ↓
-Saved to Firestore /reports collection
+Saved to Firestore /reports instantly
         ↓
 Person A's Flask AI server analyzes:
-need_type + urgency_score + real coordinates + summary
+need_type + urgency_score + real coordinates + language + summary
         ↓
 Firestore document updated with full analysis
         ↓
 Clustering fires automatically
         ↓
-If cluster urgency 80+ → auto assign best volunteer
+If cluster urgency 80+ → auto assign nearest skilled volunteer
         ↓
-Task created in /tasks → volunteer notified via WhatsApp
+Volunteer gets WhatsApp + SMS simultaneously
         ↓
-Volunteer replies ACCEPT or DONE → Firestore updates
+Volunteer replies ACCEPT, DONE, or DECLINE → Firestore updates
+        ↓
+Hourly escalation runs — urgency increases for unresolved clusters
 ```
 
+---
+
 ### API Routes
+
 | Route | Method | What it does |
 |---|---|---|
 | `/` | GET | Test server is running |
-| `/incoming-message` | POST | Receives WhatsApp from field worker |
-| `/register-volunteer` | POST | Registers a new volunteer |
+| `/incoming-message` | POST | Receives WhatsApp/replies from field workers and volunteers |
+| `/incoming-call` | POST | Handles IVR voice call |
+| `/handle-keypress` | POST | Processes IVR menu keypress |
+| `/handle-recording` | POST | Saves voice recording to Firestore |
+| `/register-volunteer` | POST | Registers new volunteer with geocoding |
 | `/match-volunteers` | POST | Returns top 3 volunteers for a cluster |
 | `/assign-volunteer` | POST | Assigns volunteer to cluster, creates task |
 | `/update-task` | POST | Updates task status |
-| `/sms-reply` | POST | Handles ACCEPT/DONE replies from volunteers |
+| `/sms-reply` | POST | Handles ACCEPT/DONE replies via SMS |
+| `/register-ngo` | POST | Registers new NGO with Firebase Auth |
+| `/login-ngo` | POST | NGO login, returns custom token |
+| `/analytics` | GET | Full system stats |
+| `/generate-report` | POST | Generates AI impact report for a cluster |
+| `/demo-trigger` | POST | Fires full demo sequence automatically |
+
+---
 
 ### Installation
 ```powershell
@@ -191,26 +249,30 @@ npm install
 ```
 
 ### Packages
+
 | Package | Purpose |
 |---|---|
-| firebase-admin | Connect to Firestore database |
+| firebase-admin | Connect to Firestore + Firebase Auth |
 | express | Backend server |
 | dotenv | Load environment variables |
-| twilio | Receive and send WhatsApp messages |
-| @google/generative-ai | Gemini AI (ready, currently using Groq via Person A) |
+| twilio | WhatsApp + SMS intake and notifications |
+| @google/generative-ai | Gemini AI (ready, using Groq via Person A) |
 | cors | Allow frontend to connect to backend |
 
 ### Environment Variables
+
 Create a `.env` file inside the `backend` folder:
 ```
 GEMINI_API_KEY=your_key_here
 TWILIO_ACCOUNT_SID=your_sid_here
 TWILIO_AUTH_TOKEN=your_token_here
-TWILIO_PHONE_NUMBER=your_twilio_number_here
+TWILIO_PHONE_NUMBER=
+TWILIO_REAL_NUMBER=
 ```
 
 ### Running The Full Backend
-Two servers need to run simultaneously:
+
+Three terminals needed:
 
 Terminal 1 — Person A's AI server:
 ```powershell
@@ -230,9 +292,11 @@ Terminal 3 — Ngrok:
 cd backend
 .\ngrok.exe http 3000
 ```
-Copy the https URL → paste in Twilio Sandbox Configuration → When a message comes in → Save
 
-
+Copy the https URL → paste in:
+- Twilio Sandbox → When a message comes in → Save
+- Twilio Real Number → Voice: `/incoming-call` | SMS: `/sms-reply`
+  
 # Alizah
 ## Frontend (Person C) — React Dashboard
 
