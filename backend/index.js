@@ -32,8 +32,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 // Skills needed per need type
 const skillMap = {
-  water:   ['water_distribution', 'vehicle', 'logistics'],
-  food:    ['food_distribution', 'vehicle', 'logistics'],
+  water:   ['water', 'water_distribution', 'transport', 'rescue'],
+  food:    ['food', 'food_distribution', 'transport'],
   medical: ['medical', 'doctor', 'nurse', 'first_aid']
 };
 
@@ -113,6 +113,17 @@ for (const cluster of clusterData.clusters) {
   await autoAssignIfUrgent(cluster.cluster_id);
 }
 
+// Escalate urgency on old unresolved reports
+fetch('http://localhost:5000/escalate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ reports: reports })
+}).then(r => r.json()).then(data => {
+  if (data.escalated_count > 0) {
+    console.log(`⬆️ ${data.escalated_count} reports escalated`);
+  }
+}).catch(() => {});
+
   } catch (err) {
     console.error('❌ PULSE AI failed:', err.message);
   }
@@ -128,10 +139,70 @@ app.get('/', (req, res) => {
 // Twilio WhatsApp intake
 app.post('/incoming-message', async (req, res) => {
   try {
-    const incomingText = req.body.Body;
+    const incomingText = req.body.Body?.trim();
     const senderNumber = req.body.From;
+    const upperText = incomingText?.toUpperCase();
 
-    console.log(`📩 New message from ${senderNumber}: ${incomingText}`);
+    // Check if this is a volunteer reply first
+    if (upperText === 'ACCEPT' || upperText === 'DONE' || upperText === 'DECLINE') {
+      console.log(`📱 Volunteer reply from ${senderNumber}: ${upperText}`);
+
+      const volunteerSnapshot = await db.collection('volunteers')
+        .where('phone', '==', senderNumber.replace('whatsapp:', ''))
+        .get();
+
+      if (!volunteerSnapshot.empty) {
+        const volunteerDoc = volunteerSnapshot.docs[0];
+        const volunteer = volunteerDoc.data();
+        const taskId = volunteer.assigned_task_id;
+
+        if (taskId) {
+          if (upperText === 'ACCEPT') {
+            await db.collection('tasks').doc(taskId).update({ status: 'accepted' });
+            console.log(`✅ ${volunteer.name} accepted task`);
+            res.set('Content-Type', 'text/xml');
+            return res.send(`
+              <Response>
+                <Message>✅ Task accepted! Please proceed to the location. Reply DONE when complete.</Message>
+              </Response>
+            `);
+          }
+
+          if (upperText === 'DONE') {
+            await db.collection('tasks').doc(taskId).update({ status: 'done' });
+            await db.collection('volunteers').doc(volunteerDoc.id).update({
+              available: true,
+              assigned_task_id: ''
+            });
+            console.log(`✅ ${volunteer.name} completed task`);
+            res.set('Content-Type', 'text/xml');
+            return res.send(`
+              <Response>
+                <Message>🎉 Thank you! Task marked complete. You are now available for new tasks.</Message>
+              </Response>
+            `);
+          }
+
+          if (upperText === 'DECLINE') {
+            await db.collection('tasks').doc(taskId).update({ status: 'declined' });
+            await db.collection('volunteers').doc(volunteerDoc.id).update({
+              available: true,
+              assigned_task_id: ''
+            });
+            console.log(`⚠️ ${volunteer.name} declined task`);
+            res.set('Content-Type', 'text/xml');
+            return res.send(`
+              <Response>
+                <Message>Understood. We will find another volunteer. Thank you.</Message>
+              </Response>
+            `);
+          }
+        }
+      }
+    }
+
+    // Otherwise treat as a field report
+    console.log(`📩 New report from ${senderNumber}: ${incomingText}`);
 
     const docRef = await db.collection('reports').add({
       raw_text:      incomingText,
@@ -166,22 +237,43 @@ app.post('/incoming-message', async (req, res) => {
 // Volunteer registration — Person C's form posts here
 app.post('/register-volunteer', async (req, res) => {
   try {
-    const { name, email, skills, location_lat, location_lng, location_text, phone } = req.body;
+    const { name, email, skills, location, location_text, location_lat, location_lng, phone } = req.body;
+
+    let lat = location_lat || 0;
+    let lng = location_lng || 0;
+    let locText = location_text || location || '';
+
+    // If no coordinates provided, geocode the location text
+    if (!lat && locText) {
+      try {
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locText)}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'PULSE-NGO-App' } }
+        );
+        const geoData = await geoRes.json();
+        if (geoData.length > 0) {
+          lat = parseFloat(geoData[0].lat);
+          lng = parseFloat(geoData[0].lon);
+        }
+      } catch (geoErr) {
+        console.log('⚠️ Geocoding failed for volunteer location');
+      }
+    }
 
     const docRef = await db.collection('volunteers').add({
       name,
-      email,
-      skills,              // array like ['vehicle', 'water_distribution']
-      location_lat,
-      location_lng,
-      location_text,
-      phone: phone || '',
+      email:            email || '',
+      skills:           Array.isArray(skills) ? skills : [skills],
+      location_lat:     lat,
+      location_lng:     lng,
+      location_text:    locText,
+      phone:            phone || '',
       available:        true,
       assigned_task_id: '',
       registered_at:    admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log(`✅ Volunteer registered: ${name} | ID: ${docRef.id}`);
+    console.log(`✅ Volunteer registered: ${name} | Coords: ${lat}, ${lng} | ID: ${docRef.id}`);
     res.json({ success: true, volunteer_id: docRef.id });
 
   } catch (error) {
@@ -189,6 +281,7 @@ app.post('/register-volunteer', async (req, res) => {
     res.status(500).json({ error: 'Registration failed' });
   }
 });
+
 
 // Match volunteers to a cluster
 app.post('/match-volunteers', async (req, res) => {
@@ -574,6 +667,276 @@ app.post('/handle-recording', async (req, res) => {
         <Say>Kuch galat hua. Phir se try karein.</Say>
       </Response>
     `);
+  }
+});
+
+// NGO Registration
+app.post('/register-ngo', async (req, res) => {
+  try {
+    const { name, email, password, organization, phone } = req.body;
+
+    // Create Firebase Auth user
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: name
+    });
+
+    // Save NGO profile to Firestore
+    await db.collection('ngos').doc(userRecord.uid).set({
+      name,
+      email,
+      organization,
+      phone:        phone || '',
+      role:         'ngo_admin',
+      created_at:   admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ NGO registered: ${name} | ${organization}`);
+    res.json({ success: true, uid: userRecord.uid });
+
+  } catch (error) {
+    console.error('❌ NGO registration error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// NGO Login — returns Firebase token
+app.post('/login-ngo', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Get user by email
+    const userRecord = await admin.auth().getUserByEmail(email);
+    
+    // Create custom token
+    const token = await admin.auth().createCustomToken(userRecord.uid);
+
+    console.log(`✅ NGO logged in: ${email}`);
+    res.json({ success: true, token, uid: userRecord.uid });
+
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    res.status(500).json({ error: 'Invalid credentials' });
+  }
+});
+
+// Verify token — middleware for protected routes
+async function verifyToken(req, res, next) {
+  try {
+    const token = req.headers.authorization?.split('Bearer ')[1];
+    if (!token) return res.status(401).json({ error: 'No token' });
+    const decoded = await admin.auth().verifyIdToken(token);
+    req.user = decoded;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+// Auto escalation — runs every hour
+async function runEscalation() {
+  try {
+    const snapshot = await db.collection('reports')
+      .where('status', '==', 'analyzed')
+      .where('location_lat', '>', 0)
+      .get();
+
+    if (snapshot.empty) return;
+
+    const reports = snapshot.docs.map(doc => ({
+      id:            doc.id,
+      need_type:     doc.data().need_type,
+      urgency_score: doc.data().urgency_score,
+      lat:           doc.data().location_lat,
+      lon:           doc.data().location_lng,
+      affected_people: doc.data().affected_people || 0,
+      days_unmet:    doc.data().days_unmet || 0
+    }));
+
+    const res = await fetch('http://localhost:5000/escalate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reports })
+    });
+
+    const data = await res.json();
+    if (data.escalated_count > 0) {
+      console.log(`⬆️ Hourly escalation: ${data.escalated_count} reports escalated`);
+
+      // Re-run clustering after escalation
+      const clusterRes = await fetch('http://localhost:5000/cluster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reports })
+      });
+      const clusterData = await clusterRes.json();
+
+      const batch = db.batch();
+      for (const cluster of clusterData.clusters) {
+        const ref = db.collection('clusters').doc(cluster.cluster_id);
+        batch.set(ref, {
+          ...cluster,
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      await batch.commit();
+      console.log(`✅ Clusters updated after escalation`);
+
+      // Auto assign any newly urgent clusters
+      for (const cluster of clusterData.clusters) {
+        await autoAssignIfUrgent(cluster.cluster_id);
+      }
+    }
+  } catch (err) {
+    console.error('❌ Escalation error:', err.message);
+  }
+}
+
+// Run escalation every hour
+setInterval(runEscalation, 60 * 60 * 1000);
+console.log('⏰ Hourly escalation scheduler started');
+
+// Analytics — full system stats
+app.get('/analytics', async (req, res) => {
+  try {
+    const [reportsSnap, volunteersSnap, clustersSnap, tasksSnap] = await Promise.all([
+      db.collection('reports').get(),
+      db.collection('volunteers').get(),
+      db.collection('clusters').get(),
+      db.collection('tasks').get()
+    ]);
+
+    const reports = reportsSnap.docs.map(d => d.data());
+    const volunteers = volunteersSnap.docs.map(d => d.data());
+    const clusters = clustersSnap.docs.map(d => d.data());
+    const tasks = tasksSnap.docs.map(d => d.data());
+
+    const analytics = {
+      reports: {
+        total:     reports.length,
+        analyzed:  reports.filter(r => r.status === 'analyzed').length,
+        new:       reports.filter(r => r.status === 'new').length,
+        by_type: {
+          water:   reports.filter(r => r.need_type === 'water').length,
+          food:    reports.filter(r => r.need_type === 'food').length,
+          medical: reports.filter(r => r.need_type === 'medical').length
+        },
+        total_affected: reports.reduce((sum, r) => sum + (r.affected_people || 0), 0)
+      },
+      volunteers: {
+        total:      volunteers.length,
+        available:  volunteers.filter(v => v.available).length,
+        deployed:   volunteers.filter(v => !v.available).length
+      },
+      clusters: {
+        total:    clusters.length,
+        critical: clusters.filter(c => c.combined_urgency >= 80).length,
+        high:     clusters.filter(c => c.combined_urgency >= 50 && c.combined_urgency < 80).length,
+        medium:   clusters.filter(c => c.combined_urgency < 50).length
+      },
+      tasks: {
+        total:    tasks.length,
+        assigned: tasks.filter(t => t.status === 'assigned').length,
+        accepted: tasks.filter(t => t.status === 'accepted').length,
+        done:     tasks.filter(t => t.status === 'done').length
+      }
+    };
+
+    res.json({ success: true, analytics });
+
+  } catch (error) {
+    console.error('❌ Analytics error:', error);
+    res.status(500).json({ error: 'Analytics failed' });
+  }
+});
+
+
+// Generate NGO report for a cluster — proxies to Person A's Flask
+app.post('/generate-report', async (req, res) => {
+  try {
+    const { cluster_id } = req.body;
+
+    const clusterDoc = await db.collection('clusters').doc(cluster_id).get();
+    if (!clusterDoc.exists) {
+      return res.status(404).json({ error: 'Cluster not found' });
+    }
+
+    const cluster = clusterDoc.data();
+
+    // Get reports in this cluster
+    const reportsData = [];
+    if (cluster.report_ids && cluster.report_ids.length > 0) {
+      for (const reportId of cluster.report_ids) {
+        const reportDoc = await db.collection('reports').doc(reportId).get();
+        if (reportDoc.exists) reportsData.push(reportDoc.data());
+      }
+    }
+
+    // Call Person A's report generator
+    const flaskRes = await fetch('http://localhost:5000/generate-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cluster, reports: reportsData })
+    });
+
+    const data = await flaskRes.json();
+    console.log(`✅ Report generated for cluster ${cluster_id}`);
+    res.json(data);
+
+  } catch (error) {
+    console.error('❌ Report generation error:', error);
+    res.status(500).json({ error: 'Report generation failed' });
+  }
+});
+
+// Demo trigger — fires full demo sequence automatically
+app.post('/demo-trigger', async (req, res) => {
+  try {
+    console.log('🎬 Demo sequence starting...');
+
+    const demoReports = [
+      { text: 'Paani nahi hai Abids mein, 3 din se, 50 log affected', sender: 'whatsapp:+919000000001' },
+      { text: 'Medical emergency in Tolichowki, bujurg aadmi behosh hai, doctor chahiye', sender: 'whatsapp:+919000000002' },
+      { text: 'Khaane ki kami hai Mehdipatnam area mein, 30 families hain', sender: 'whatsapp:+919000000003' }
+    ];
+
+    const savedIds = [];
+
+    for (const report of demoReports) {
+      const docRef = await db.collection('reports').add({
+        raw_text:      report.text,
+        sender:        report.sender,
+        need_type:     '',
+        urgency_score: 0,
+        location_text: '',
+        location_lat:  0,
+        location_lng:  0,
+        language:      '',
+        summary:       '',
+        status:        'new',
+        source:        'demo',
+        timestamp:     admin.firestore.FieldValue.serverTimestamp()
+      });
+      savedIds.push(docRef.id);
+      console.log(`🎬 Demo report saved: ${docRef.id}`);
+
+      // Enrich each report
+      enrichWithPULSEAI(docRef.id, report.text).catch(console.error);
+
+      // Small delay between reports
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    res.json({
+      success: true,
+      message: 'Demo sequence fired',
+      report_ids: savedIds
+    });
+
+  } catch (error) {
+    console.error('❌ Demo trigger error:', error);
+    res.status(500).json({ error: 'Demo trigger failed' });
   }
 });
 

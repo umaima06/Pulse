@@ -72,6 +72,19 @@ function Intake() {
             className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 text-white font-bold py-3 rounded-lg transition-all text-lg">
             {loading ? 'Submitting...' : 'Submit Report →'}
           </button>
+          <button 
+  onClick={async () => {
+    setLoading(true)
+    try {
+      await fetch('http://localhost:3000/demo-trigger', { method: 'POST' })
+      setStatus('success')
+    } catch { setStatus('error') }
+    setLoading(false)
+  }}
+  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-all text-lg mt-3"
+>
+  🎬 Fire Demo Sequence
+</button>
         </div>
       </div>
     </div>
