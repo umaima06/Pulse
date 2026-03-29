@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import Navbar from '../components/Navbar'
 
 function Volunteer() {
@@ -16,10 +16,7 @@ function Volunteer() {
   }
 
   const handleSubmit = async () => {
-    if (!form.name || !form.phone || !form.location || form.skills.length === 0) {
-      setStatus('error')
-      return
-    }
+    if (!form.name || !form.phone || !form.location || form.skills.length === 0) { setStatus('error'); return }
     setLoading(true)
     try {
       const res = await fetch('http://localhost:3000/register-volunteer', {
@@ -27,15 +24,9 @@ function Volunteer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       })
-      if (res.ok) {
-        setStatus('success')
-        setForm({ name: '', email: '', phone: '', location: '', skills: [] })
-      } else {
-        setStatus('error')
-      }
-    } catch {
-      setStatus('error')
-    }
+      if (res.ok) { setStatus('success'); setForm({ name: '', email: '', phone: '', location: '', skills: [] }) }
+      else setStatus('error')
+    } catch { setStatus('error') }
     setLoading(false)
   }
 
@@ -45,10 +36,9 @@ function Volunteer() {
       <div className="max-w-lg mx-auto px-6 py-10">
         <h2 className="text-3xl font-bold mb-2">Register as Volunteer</h2>
         <p className="text-gray-400 mb-8">Join PULSE to help communities in crisis</p>
-
         {status === 'success' && (
           <div className="bg-green-800 border border-green-500 rounded-lg p-4 mb-6">
-            <p className="text-green-300 font-medium">✅ Registered! You'll receive WhatsApp alerts.</p>
+            <p className="text-green-300 font-medium">✅ Registered! You will receive WhatsApp alerts.</p>
           </div>
         )}
         {status === 'error' && (
@@ -56,7 +46,6 @@ function Volunteer() {
             <p className="text-red-300 font-medium">❌ Fill all fields and select at least one skill.</p>
           </div>
         )}
-
         <div className="space-y-5">
           <div>
             <label className="text-gray-300 text-sm mb-1 block">Full Name *</label>

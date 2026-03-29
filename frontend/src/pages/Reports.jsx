@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
-import Spinner from '../components/Spinner'
 
 function Reports() {
   const [reports, setReports] = useState([])
@@ -29,7 +28,12 @@ function Reports() {
     return 'bg-yellow-900 border-yellow-700'
   }
 
-  if (loading) return <Spinner text="Loading reports..." />
+  if (loading) return (
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center">
+      <div className="w-12 h-12 border-4 border-orange-400 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-gray-400">Loading reports...</p>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">

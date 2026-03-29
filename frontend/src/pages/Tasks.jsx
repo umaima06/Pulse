@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
-import Spinner from '../components/Spinner'
 
 function Tasks() {
   const [tasks, setTasks] = useState([])
@@ -23,14 +22,19 @@ function Tasks() {
     return 'bg-yellow-700 text-yellow-200'
   }
 
-  if (loading) return <Spinner text="Loading tasks..." />
+  if (loading) return (
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center">
+      <div className="w-12 h-12 border-4 border-orange-400 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-gray-400">Loading tasks...</p>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Navbar />
       <div className="max-w-4xl mx-auto px-6 py-10">
         <h2 className="text-3xl font-bold mb-2">Task Tracker</h2>
-        <p className="text-gray-400 mb-8">Live volunteer assignments from Firestore</p>
+        <p className="text-gray-400 mb-8">Live volunteer assignments</p>
         <div className="flex gap-4 mb-8">
           <div className="bg-yellow-900 px-4 py-3 rounded-lg">
             <p className="text-yellow-300 text-xs">PENDING</p>
