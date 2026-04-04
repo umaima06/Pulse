@@ -128,6 +128,197 @@ fetch('http://localhost:5000/escalate', {
     console.error('❌ PULSE AI failed:', err.message);
   }
 }
+// ─── WHATSAPP CONVERSATIONAL BOT ────────────────────────────────────
+
+// Check if message has enough info to skip conversation
+function isDetailedReport(text) {
+  const hasLocation = /abids|hyderabad|mumbai|delhi|chennai|kolkata|bangalore|pune|jaipur|lucknow|village|nagar|pur|bad|abad|puram/i.test(text);
+  const hasNumber = /\d+/.test(text);
+  const hasNeedType = /paani|water|khaana|food|medical|bimaar|doctor|hospital|khana|pani/i.test(text);
+  return hasLocation && (hasNumber || hasNeedType);
+}
+
+// Get or create conversation state for a sender
+async function getConversation(senderNumber) {
+  const convRef = db.collection('conversations').doc(senderNumber.replace(/[^a-zA-Z0-9]/g, '_'));
+  const doc = await convRef.get();
+  if (!doc.exists) return null;
+  const data = doc.data();
+  // Expire conversations older than 30 minutes
+  const age = Date.now() - (data.updated_at?.toMillis() || 0);
+  if (age > 30 * 60 * 1000) {
+    await convRef.delete();
+    return null;
+  }
+  return { ref: convRef, ...data };
+}
+
+// Save conversation state
+async function saveConversation(senderNumber, state) {
+  const convRef = db.collection('conversations').doc(senderNumber.replace(/[^a-zA-Z0-9]/g, '_'));
+  await convRef.set({
+    ...state,
+    updated_at: admin.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+// Delete conversation
+async function deleteConversation(senderNumber) {
+  const convRef = db.collection('conversations').doc(senderNumber.replace(/[^a-zA-Z0-9]/g, '_'));
+  await convRef.delete();
+}
+
+// Main bot handler — returns reply text or null if should process as report
+async function handleBotConversation(senderNumber, incomingText) {
+  const text = incomingText.trim();
+  const upper = text.toUpperCase();
+
+  // Get existing conversation
+  const conv = await getConversation(senderNumber);
+
+  // ── No active conversation ──
+  if (!conv) {
+    // If message is detailed enough, skip bot and process directly
+    if (isDetailedReport(text)) {
+      return null; // null = process as direct report
+    }
+
+    // Start conversation — ask need type
+    await saveConversation(senderNumber, {
+      step: 'ask_need_type',
+      sender: senderNumber
+    });
+
+    return `Namaste! PULSE mein aapka swagat hai. 🙏
+
+Kya samasya hai? Reply karein:
+*1* - Paani ki kami 💧
+*2* - Khaane ki kami 🍱
+*3* - Medical emergency 🏥`;
+  }
+
+  // ── Active conversation — handle each step ──
+
+  // Step 1: Need type selection
+  if (conv.step === 'ask_need_type') {
+    const needMap = { '1': 'water', '2': 'food', '3': 'medical' };
+    const needTypeMap = {
+      'water': 'water', 'paani': 'water', 'pani': 'water',
+      'food': 'food', 'khaana': 'food', 'khana': 'food',
+      'medical': 'medical', 'doctor': 'medical', 'bimaar': 'medical'
+    };
+
+    let needType = needMap[text] || needTypeMap[text.toLowerCase()];
+
+    if (!needType) {
+      return `Kripya sirf *1*, *2*, ya *3* bhejein:
+*1* - Paani ki kami 💧
+*2* - Khaane ki kami 🍱
+*3* - Medical emergency 🏥`;
+    }
+
+    await saveConversation(senderNumber, {
+      step: 'ask_people',
+      need_type: needType,
+      sender: senderNumber
+    });
+
+    const needNames = { water: 'Paani ki kami 💧', food: 'Khaane ki kami 🍱', medical: 'Medical emergency 🏥' };
+    return `${needNames[needType]} — samajh gaye.
+
+Kitne log affected hain? Sirf number bhejein.
+Jaise: *50*`;
+  }
+
+  // Step 2: Number of people
+  if (conv.step === 'ask_people') {
+    const num = parseInt(text);
+    if (isNaN(num) || num <= 0) {
+      return `Kripya sirf number bhejein. Jaise: *50*`;
+    }
+
+    await saveConversation(senderNumber, {
+      step: 'ask_days',
+      need_type: conv.need_type,
+      affected_people: num,
+      sender: senderNumber
+    });
+
+    return `${num} log — noted. ✅
+
+Kitne din se yeh samasya hai? Sirf number bhejein.
+Jaise: *3*`;
+  }
+
+  // Step 3: Days unmet
+  if (conv.step === 'ask_days') {
+    const days = parseInt(text);
+    if (isNaN(days) || days <= 0) {
+      return `Kripya sirf number bhejein. Jaise: *3*`;
+    }
+
+    await saveConversation(senderNumber, {
+      step: 'ask_location',
+      need_type: conv.need_type,
+      affected_people: conv.affected_people,
+      days_unmet: days,
+      sender: senderNumber
+    });
+
+    return `${days} din — noted. ✅
+
+Aapka location kya hai? Village ya area ka naam bhejein.
+Jaise: *Abids, Hyderabad*`;
+  }
+
+  // Step 4: Location — complete the report
+  if (conv.step === 'ask_location') {
+    const location = text;
+
+    // Build complete report text
+    const reportText = `${conv.need_type} crisis at ${location}. ${conv.affected_people} people affected for ${conv.days_unmet} days.`;
+
+    // Delete conversation
+    await deleteConversation(senderNumber);
+
+    // Save to Firestore
+    const docRef = await db.collection('reports').add({
+      raw_text:        reportText,
+      sender:          senderNumber,
+      need_type:       conv.need_type,
+      urgency_score:   0,
+      location_text:   location,
+      location_lat:    0,
+      location_lng:    0,
+      language:        'Hindi',
+      summary:         '',
+      affected_people: conv.affected_people,
+      days_unmet:      conv.days_unmet,
+      status:          'new',
+      source:          'whatsapp_bot',
+      timestamp:       admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`🤖 Bot report complete: ${reportText} | ID: ${docRef.id}`);
+
+    // Enrich with AI
+    enrichWithPULSEAI(docRef.id, reportText).catch(console.error);
+
+    const needEmoji = { water: '💧', food: '🍱', medical: '🏥' };
+    return `✅ *Report darj ho gayi!*
+
+${needEmoji[conv.need_type]} *Samasya:* ${conv.need_type}
+👥 *Log affected:* ${conv.affected_people}
+📅 *Din se:* ${conv.days_unmet}
+📍 *Location:* ${location}
+
+Jald hi volunteer bheja jayega. Shukriya! 🙏`;
+  }
+
+  // Fallback
+  await deleteConversation(senderNumber);
+  return null;
+}
 
 // ─── ROUTES ─────────────────────────────────────────────────────────
 
@@ -201,8 +392,22 @@ app.post('/incoming-message', async (req, res) => {
       }
     }
 
-    // Otherwise treat as a field report
-    console.log(`📩 New report from ${senderNumber}: ${incomingText}`);
+// Check bot conversation first
+    const botReply = await handleBotConversation(senderNumber, incomingText);
+
+    if (botReply !== null) {
+      // Bot is handling this conversation
+      console.log(`🤖 Bot reply to ${senderNumber}`);
+      res.set('Content-Type', 'text/xml');
+      return res.send(`
+        <Response>
+          <Message>${botReply}</Message>
+        </Response>
+      `);
+    }
+
+    // Bot said null = detailed report, process directly
+    console.log(`📩 Direct report from ${senderNumber}: ${incomingText}`);
 
     const docRef = await db.collection('reports').add({
       raw_text:      incomingText,
@@ -937,6 +1142,300 @@ app.post('/demo-trigger', async (req, res) => {
   } catch (error) {
     console.error('❌ Demo trigger error:', error);
     res.status(500).json({ error: 'Demo trigger failed' });
+  }
+});
+
+// ─── PREDICTIVE ALERTS ──────────────────────────────────────────────
+
+async function generatePredictiveAlerts() {
+  try {
+    console.log('🔮 Running predictive alert analysis...');
+
+    const now = new Date();
+    const currentMonth = now.getMonth(); // 0-11
+    const currentDay = now.getDate();
+
+    // Get all historical reports
+    const snapshot = await db.collection('reports')
+      .where('status', '==', 'analyzed')
+      .get();
+
+    if (snapshot.empty) return;
+
+    // Group reports by region + need_type + month
+    const patterns = {};
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (!data.district && !data.location_text) return;
+      if (!data.need_type) return;
+
+      const timestamp = data.timestamp?.toDate() || new Date();
+      const month = timestamp.getMonth();
+      const region = data.district || data.location_text;
+      const key = `${region}__${data.need_type}__${month}`;
+
+      if (!patterns[key]) {
+        patterns[key] = {
+          region,
+          need_type: data.need_type,
+          month,
+          count: 0,
+          total_affected: 0
+        };
+      }
+      patterns[key].count++;
+      patterns[key].total_affected += data.affected_people || 0;
+    });
+
+    // Check if current month+1 matches any historical pattern
+    const nextMonth = (currentMonth + 1) % 12;
+    const alerts = [];
+
+    for (const key of Object.keys(patterns)) {
+      const pattern = patterns[key];
+
+      // If this region+need_type had 2+ reports in the same month historically
+      if (pattern.month === nextMonth && pattern.count >= 2) {
+        alerts.push({
+          region: pattern.region,
+          need_type: pattern.need_type,
+          predicted_month: new Date(2026, nextMonth, 1).toLocaleString('default', { month: 'long' }),
+          historical_count: pattern.count,
+          avg_affected: Math.round(pattern.total_affected / pattern.count),
+          confidence: pattern.count >= 4 ? 'HIGH' : pattern.count >= 2 ? 'MEDIUM' : 'LOW'
+        });
+      }
+    }
+
+    if (alerts.length === 0) {
+      console.log('🔮 No predictive alerts generated');
+      return;
+    }
+
+    // Save alerts to Firestore
+    const batch = db.batch();
+    for (const alert of alerts) {
+      const ref = db.collection('predictive_alerts').doc(
+        `${alert.region}_${alert.need_type}_${alert.predicted_month}`.replace(/[^a-zA-Z0-9]/g, '_')
+      );
+      batch.set(ref, {
+        ...alert,
+        status: 'active',
+        created_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    await batch.commit();
+
+    console.log(`🔮 ${alerts.length} predictive alerts generated`);
+
+    // Notify all NGOs via WhatsApp
+    if (alerts.length > 0 && process.env.TWILIO_PHONE_NUMBER) {
+      const twilio = require('twilio')(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      );
+
+      const alertMsg = alerts.slice(0, 3).map(a =>
+        `⚠️ ${a.region}: ${a.need_type} crisis predicted for ${a.predicted_month} (${a.confidence} confidence, ~${a.avg_affected} people)`
+      ).join('\n');
+
+      // Send to NGO admin number if configured
+      if (process.env.NGO_ADMIN_PHONE) {
+        await twilio.messages.create({
+          body: `🔮 PULSE Predictive Alert:\n\n${alertMsg}\n\nPre-position volunteers now.`,
+          from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+          to: `whatsapp:${process.env.NGO_ADMIN_PHONE}`
+        });
+        console.log('📱 Predictive alert sent to NGO admin');
+      }
+    }
+
+  } catch (err) {
+    console.error('❌ Predictive alert error:', err.message);
+  }
+}
+
+// Run predictive alerts daily at midnight
+setInterval(generatePredictiveAlerts, 24 * 60 * 60 * 1000);
+// Also run once on startup after 10 seconds
+setTimeout(generatePredictiveAlerts, 10000);
+console.log('🔮 Predictive alert system started');
+
+// GET endpoint — fetch current predictive alerts
+app.get('/predictive-alerts', async (req, res) => {
+  try {
+    const snapshot = await db.collection('predictive_alerts')
+      .where('status', '==', 'active')
+      .get();
+
+    const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, alerts });
+
+  } catch (error) {
+    console.error('❌ Fetch alerts error:', error);
+    res.status(500).json({ error: 'Failed to fetch alerts' });
+  }
+});
+
+// ─── MULTI-NGO DATA ISOLATION ────────────────────────────────────────
+
+// Get NGO ID from request — from token or header
+function getNgoId(req) {
+  return req.headers['x-ngo-id'] || req.body?.ngo_id || 'default';
+}
+
+// NGO-scoped reports
+app.get('/ngo-reports', async (req, res) => {
+  try {
+    const ngoId = getNgoId(req);
+
+    const snapshot = await db.collection('reports')
+      .where('ngo_id', '==', ngoId)
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
+
+    const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, reports });
+
+  } catch (error) {
+    console.error('❌ NGO reports error:', error);
+    res.status(500).json({ error: 'Failed to fetch reports' });
+  }
+});
+
+// NGO-scoped volunteers
+app.get('/ngo-volunteers', async (req, res) => {
+  try {
+    const ngoId = getNgoId(req);
+
+    const snapshot = await db.collection('volunteers')
+      .where('ngo_id', '==', ngoId)
+      .get();
+
+    const volunteers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, volunteers });
+
+  } catch (error) {
+    console.error('❌ NGO volunteers error:', error);
+    res.status(500).json({ error: 'Failed to fetch volunteers' });
+  }
+});
+
+// NGO-scoped clusters
+app.get('/ngo-clusters', async (req, res) => {
+  try {
+    const ngoId = getNgoId(req);
+
+    const snapshot = await db.collection('clusters')
+      .where('ngo_id', '==', ngoId)
+      .get();
+
+    const clusters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, clusters });
+
+  } catch (error) {
+    console.error('❌ NGO clusters error:', error);
+    res.status(500).json({ error: 'Failed to fetch clusters' });
+  }
+});
+
+// NGO-scoped analytics
+app.get('/ngo-analytics', async (req, res) => {
+  try {
+    const ngoId = getNgoId(req);
+
+    const [reportsSnap, volunteersSnap, clustersSnap, tasksSnap] = await Promise.all([
+      db.collection('reports').where('ngo_id', '==', ngoId).get(),
+      db.collection('volunteers').where('ngo_id', '==', ngoId).get(),
+      db.collection('clusters').where('ngo_id', '==', ngoId).get(),
+      db.collection('tasks').where('ngo_id', '==', ngoId).get()
+    ]);
+
+    const reports = reportsSnap.docs.map(d => d.data());
+    const volunteers = volunteersSnap.docs.map(d => d.data());
+    const clusters = clustersSnap.docs.map(d => d.data());
+    const tasks = tasksSnap.docs.map(d => d.data());
+
+    res.json({
+      success: true,
+      ngo_id: ngoId,
+      analytics: {
+        reports: {
+          total: reports.length,
+          by_type: {
+            water:   reports.filter(r => r.need_type === 'water').length,
+            food:    reports.filter(r => r.need_type === 'food').length,
+            medical: reports.filter(r => r.need_type === 'medical').length
+          },
+          total_affected: reports.reduce((sum, r) => sum + (r.affected_people || 0), 0)
+        },
+        volunteers: {
+          total:     volunteers.length,
+          available: volunteers.filter(v => v.available).length,
+          deployed:  volunteers.filter(v => !v.available).length
+        },
+        clusters: {
+          total:    clusters.length,
+          critical: clusters.filter(c => c.combined_urgency >= 80).length
+        },
+        tasks: {
+          total: tasks.length,
+          done:  tasks.filter(t => t.status === 'done').length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ NGO analytics error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// Update register-volunteer to tag with ngo_id
+app.post('/register-volunteer-ngo', async (req, res) => {
+  try {
+    const { name, email, skills, location, location_text, location_lat, location_lng, phone, ngo_id } = req.body;
+
+    let lat = location_lat || 0;
+    let lng = location_lng || 0;
+    let locText = location_text || location || '';
+
+    if (!lat && locText) {
+      try {
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locText)}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'PULSE-NGO-App' } }
+        );
+        const geoData = await geoRes.json();
+        if (geoData.length > 0) {
+          lat = parseFloat(geoData[0].lat);
+          lng = parseFloat(geoData[0].lon);
+        }
+      } catch { console.log('⚠️ Geocoding failed'); }
+    }
+
+    const docRef = await db.collection('volunteers').add({
+      name,
+      email:            email || '',
+      skills:           Array.isArray(skills) ? skills : [skills],
+      location_lat:     lat,
+      location_lng:     lng,
+      location_text:    locText,
+      phone:            phone || '',
+      ngo_id:           ngo_id || 'default',
+      available:        true,
+      assigned_task_id: '',
+      registered_at:    admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ Volunteer registered under NGO ${ngo_id}: ${name}`);
+    res.json({ success: true, volunteer_id: docRef.id });
+
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
   }
 });
 
