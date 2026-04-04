@@ -15,6 +15,9 @@ function Dashboard() {
   const [reportText, setReportText] = useState('')
   const [showReportModal, setShowReportModal] = useState(false)
   const [reportLoading, setReportLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoSuccess, setDemoSuccess] = useState(false)
+  const [alerts, setAlerts] = useState([])
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY
@@ -29,8 +32,25 @@ function Dashboard() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setReports(data.slice(0, 20))
     })
+    fetch('http://localhost:3000/predictive-alerts')
+      .then(r => r.json())
+      .then(data => setAlerts(data.alerts || []))
+      .catch(() => {})
     return () => { unsub1(); unsub2() }
   }, [])
+
+  const triggerDemo = async () => {
+    setDemoLoading(true)
+    setDemoSuccess(false)
+    try {
+      await fetch('http://localhost:3000/demo-trigger', { method: 'POST' })
+      setDemoSuccess(true)
+      setTimeout(() => setDemoSuccess(false), 5000)
+    } catch {
+      alert('Demo trigger failed. Make sure backend is running on port 3000.')
+    }
+    setDemoLoading(false)
+  }
 
   const getColor = (urgency) => {
     if (urgency >= 80) return '#ef4444'
@@ -78,8 +98,27 @@ function Dashboard() {
     <div className="flex flex-col h-screen bg-gray-900">
       <Navbar />
 
+      {/* Predictive Alerts Banner */}
+      {alerts.length > 0 && (
+        <div className="bg-yellow-900 border-b border-yellow-700 px-6 py-2 flex items-center gap-3 overflow-x-auto">
+          <span className="text-yellow-400 text-sm font-bold flex-shrink-0">⚠️ PREDICTIVE ALERTS:</span>
+          {alerts.slice(0, 3).map((alert, i) => (
+            <span key={i} className="text-yellow-200 text-xs bg-yellow-800 px-3 py-1 rounded-full flex-shrink-0">
+              {alert.region} — {alert.need_type} ({alert.confidence} confidence)
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Demo Success Banner */}
+      {demoSuccess && (
+        <div className="bg-green-800 border-b border-green-600 px-6 py-2 text-center">
+          <p className="text-green-300 text-sm font-medium">✅ Demo fired! 3 crisis reports sent — watch the map update live!</p>
+        </div>
+      )}
+
       {/* Stats Bar */}
-      <div className="flex gap-3 px-4 md:px-6 py-3 bg-gray-800 border-b border-gray-700 overflow-x-auto">
+      <div className="flex gap-3 px-4 md:px-6 py-3 bg-gray-800 border-b border-gray-700 overflow-x-auto items-center">
         {[
           { label: 'CRITICAL', value: clusters.filter(c => c.combined_urgency >= 80).length, bg: 'bg-red-900', text: 'text-red-300' },
           { label: 'HIGH', value: clusters.filter(c => c.combined_urgency >= 50 && c.combined_urgency < 80).length, bg: 'bg-orange-900', text: 'text-orange-300' },
@@ -92,6 +131,17 @@ function Dashboard() {
             <p className="text-white font-bold text-xl">{stat.value}</p>
           </div>
         ))}
+
+        {/* Demo Trigger Button */}
+        <button onClick={triggerDemo} disabled={demoLoading}
+          className="ml-auto flex-shrink-0 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 text-white text-sm font-bold px-5 py-2 rounded-lg transition-all flex items-center gap-2">
+          {demoLoading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Firing...
+            </>
+          ) : '🚀 Fire Demo'}
+        </button>
       </div>
 
       {/* Map + Panels */}
@@ -101,7 +151,6 @@ function Dashboard() {
             {clusters.map(cluster => (
               cluster.centroid_lat && cluster.centroid_lon ? (
                 <span key={cluster.id}>
-                  {/* Pulse glow for critical */}
                   {cluster.combined_urgency >= 80 && (
                     <Circle
                       center={{ lat: cluster.centroid_lat, lng: cluster.centroid_lon }}
@@ -137,6 +186,7 @@ function Dashboard() {
               {reports.length === 0 ? (
                 <div className="p-6 text-center">
                   <p className="text-gray-500 text-sm">No reports yet...</p>
+                  <p className="text-gray-600 text-xs mt-1">Press 🚀 Fire Demo to see live data</p>
                 </div>
               ) : reports.map(report => (
                 <div key={report.id} className="p-4 hover:bg-gray-700 transition-colors">
@@ -186,7 +236,8 @@ function Dashboard() {
               <div className="mt-4">
                 <p className="text-gray-400 text-xs mb-2">URGENCY LEVEL</p>
                 <div className="w-full bg-gray-600 rounded-full h-3">
-                  <div className="h-3 rounded-full transition-all duration-500" style={{ width: selected.combined_urgency + '%', backgroundColor: getColor(selected.combined_urgency) }} />
+                  <div className="h-3 rounded-full transition-all duration-500"
+                    style={{ width: selected.combined_urgency + '%', backgroundColor: getColor(selected.combined_urgency) }} />
                 </div>
               </div>
               <button onClick={() => generateReport(selected)}
