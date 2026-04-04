@@ -169,119 +169,174 @@ async function deleteConversation(senderNumber) {
 }
 
 // Main bot handler — returns reply text or null if should process as report
+// Detect language using AI
+async function detectLanguage(text) {
+  try {
+    const res = await fetch('http://localhost:5000/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+    return data?.data?.language_detected || 'Hindi';
+  } catch {
+    return 'Hindi';
+  }
+}
+
+// Get bot messages in detected language
+function getBotMessages(language) {
+  const messages = {
+    'Telugu': {
+      welcome: 'Namaskaram! PULSE lo mee swaagatam. 🙏\n\nEmi samasya?\n*1* - Neellu samasya 💧\n*2* - Tindlu samasya 🍱\n*3* - Vaidya avasaram 🏥',
+      invalid_need: 'Dayachesi *1*, *2*, leda *3* matrame pamandi.',
+      ask_people: 'Entha mandi prabhavitam ayyaru? Kevalamu number pamandi.\nUdaharana: *50*',
+      invalid_number: 'Dayachesi kevalamu number pamandi. Udaharana: *50*',
+      ask_days: 'Ee samasya enni roju nundi undi? Number pamandi.\nUdaharana: *3*',
+      ask_location: 'Mee location emi? Village leda area peru pamandi.\nUdaharana: *Abids, Hyderabad*',
+      confirm: (need, people, days, loc) => `✅ *Report nondinchabadindi!*\n\n💧 *Samasya:* ${need}\n👥 *Prabhavitam:* ${people}\n📅 *Rojulu:* ${days}\n📍 *Location:* ${loc}\n\nVeelaithe volunteer pampadamu. Dhanyavaadalu! 🙏`
+    },
+    'Tamil': {
+      welcome: 'Vanakkam! PULSE-il ungalai varaverkiRom. 🙏\n\nEantha piracchanai?\n*1* - Tanni piracchanai 💧\n*2* - Unavu piracchanai 🍱\n*3* - Maruthuvam 🏥',
+      invalid_need: 'Thayavu seithu *1*, *2*, alladu *3* matrum anupungal.',
+      ask_people: 'Ethanai peyar pathikkapattanar? Eppadi number anupungal.\nEthugaranam: *50*',
+      invalid_number: 'Thayavu seithu oru number matrum anupungal. Ethugaranam: *50*',
+      ask_days: 'Ee piracchanai ethanai naatkalaga irukku? Number anupungal.\nEthugaranam: *3*',
+      ask_location: 'Ungal idam enna? Kiraamam alladu pகுதி peyar anupungal.\nEthugaranam: *Chennai*',
+      confirm: (need, people, days, loc) => `✅ *Arikkai padhivu seyyappattu!*\n\n💧 *Piracchanai:* ${need}\n👥 *Pathikkapattavar:* ${people}\n📅 *Naatkal:* ${days}\n📍 *Idam:* ${loc}\n\nVirai vil thoNdar anupappaduvaar. Nandri! 🙏`
+    },
+    'Marathi': {
+      welcome: 'Namaskar! PULSE madhe aapale swagat ahe. 🙏\n\nKay samasya ahe?\n*1* - Paanyanchi kami 💧\n*2* - Jevanachi kami 🍱\n*3* - Vaidyakiy nadavnu 🏥',
+      invalid_need: 'Kripaya fakt *1*, *2*, kiva *3* pathava.',
+      ask_people: 'Kiti log prabhavit ahet? Fakat number pathava.\nUdaharana: *50*',
+      invalid_number: 'Kripaya fakt number pathava. Udaharana: *50*',
+      ask_days: 'Hi samasya kiti divasanpasun ahe? Number pathava.\nUdaharana: *3*',
+      ask_location: 'Tumcha location kaay ahe? Gaav kiva bhagacha nav pathava.\nUdaharana: *Pune*',
+      confirm: (need, people, days, loc) => `✅ *Ahewal nondavla gela!*\n\n💧 *Samasya:* ${need}\n👥 *Prabhavit:* ${people}\n📅 *Divas:* ${days}\n📍 *Sthaan:* ${loc}\n\nLavkarach volunteer pathavla jail. Dhanyavaad! 🙏`
+    },
+    'Bengali': {
+      welcome: 'Namaskar! PULSE-e apnake swagat. 🙏\n\nKi samasya?\n*1* - Pani samasya 💧\n*2* - Khabar samasya 🍱\n*3* - Chikitsa acche 🏥',
+      invalid_need: 'Onugraha kore sudhu *1*, *2*, ba *3* pathaan.',
+      ask_people: 'Kotojon prabhavit? Sudhu number pathaan.\nUdaharan: *50*',
+      invalid_number: 'Onugraha kore sudhu number pathaan. Udaharan: *50*',
+      ask_days: 'Ei samasya koto din dhore? Number pathaan.\nUdaharan: *3*',
+      ask_location: 'Apnar location ki? Gram ba elaka naam pathaan.\nUdaharan: *Kolkata*',
+      confirm: (need, people, days, loc) => `✅ *Report nথিভুক্ত হয়েছে!*\n\n💧 *Samasya:* ${need}\n👥 *Prabhavit:* ${people}\n📅 *Din:* ${days}\n📍 *Location:* ${loc}\n\nShighroi volunteer pathano hobe. Dhanyabad! 🙏`
+    },
+    'English': {
+      welcome: 'Hello! Welcome to PULSE. 🙏\n\nWhat is the problem?\n*1* - Water shortage 💧\n*2* - Food shortage 🍱\n*3* - Medical emergency 🏥',
+      invalid_need: 'Please reply with only *1*, *2*, or *3*.',
+      ask_people: 'How many people are affected? Send only a number.\nExample: *50*',
+      invalid_number: 'Please send only a number. Example: *50*',
+      ask_days: 'How many days has this problem existed? Send a number.\nExample: *3*',
+      ask_location: 'What is your location? Send village or area name.\nExample: *Abids, Hyderabad*',
+      confirm: (need, people, days, loc) => `✅ *Report registered!*\n\n💧 *Problem:* ${need}\n👥 *Affected:* ${people}\n📅 *Days:* ${days}\n📍 *Location:* ${loc}\n\nA volunteer will be sent soon. Thank you! 🙏`
+    },
+    'Hindi': {
+      welcome: 'Namaste! PULSE mein aapka swagat hai. 🙏\n\nKya samasya hai?\n*1* - Paani ki kami 💧\n*2* - Khaane ki kami 🍱\n*3* - Medical emergency 🏥',
+      invalid_need: 'Kripaya sirf *1*, *2*, ya *3* bhejein.',
+      ask_people: 'Kitne log affected hain? Sirf number bhejein.\nJaise: *50*',
+      invalid_number: 'Kripaya sirf number bhejein. Jaise: *50*',
+      ask_days: 'Kitne din se yeh samasya hai? Number bhejein.\nJaise: *3*',
+      ask_location: 'Aapka location kya hai? Village ya area ka naam bhejein.\nJaise: *Abids, Hyderabad*',
+      confirm: (need, people, days, loc) => `✅ *Report darj ho gayi!*\n\n💧 *Samasya:* ${need}\n👥 *Log affected:* ${people}\n📅 *Din se:* ${days}\n📍 *Location:* ${loc}\n\nJald hi volunteer bheja jayega. Shukriya! 🙏`
+    }
+  };
+  return messages[language] || messages['Hindi'];
+}
+
+// Check if message has enough info to skip conversation
+function isDetailedReport(text) {
+  const hasNumber = /\d+/.test(text);
+  const wordCount = text.trim().split(/\s+/).length;
+  // If message has 6+ words and a number, treat as detailed report
+  return wordCount >= 6 && hasNumber;
+}
+
 async function handleBotConversation(senderNumber, incomingText) {
   const text = incomingText.trim();
   const upper = text.toUpperCase();
 
-  // Get existing conversation
   const conv = await getConversation(senderNumber);
 
-  // ── No active conversation ──
+  // No active conversation
   if (!conv) {
-    // If message is detailed enough, skip bot and process directly
-    if (isDetailedReport(text)) {
-      return null; // null = process as direct report
-    }
+    if (isDetailedReport(text)) return null;
 
-    // Start conversation — ask need type
+    // Detect language
+    const language = await detectLanguage(text);
+    const msgs = getBotMessages(language);
+
     await saveConversation(senderNumber, {
       step: 'ask_need_type',
-      sender: senderNumber
+      sender: senderNumber,
+      language
     });
 
-    return `Namaste! PULSE mein aapka swagat hai. 🙏
-
-Kya samasya hai? Reply karein:
-*1* - Paani ki kami 💧
-*2* - Khaane ki kami 🍱
-*3* - Medical emergency 🏥`;
+    return msgs.welcome;
   }
 
-  // ── Active conversation — handle each step ──
+  const msgs = getBotMessages(conv.language || 'Hindi');
 
-  // Step 1: Need type selection
+  // Step 1: Need type
   if (conv.step === 'ask_need_type') {
     const needMap = { '1': 'water', '2': 'food', '3': 'medical' };
-    const needTypeMap = {
-      'water': 'water', 'paani': 'water', 'pani': 'water',
-      'food': 'food', 'khaana': 'food', 'khana': 'food',
-      'medical': 'medical', 'doctor': 'medical', 'bimaar': 'medical'
-    };
-
-    let needType = needMap[text] || needTypeMap[text.toLowerCase()];
+    const needType = needMap[text];
 
     if (!needType) {
-      return `Kripya sirf *1*, *2*, ya *3* bhejein:
-*1* - Paani ki kami 💧
-*2* - Khaane ki kami 🍱
-*3* - Medical emergency 🏥`;
+      return msgs.invalid_need;
     }
 
     await saveConversation(senderNumber, {
       step: 'ask_people',
       need_type: needType,
-      sender: senderNumber
+      sender: senderNumber,
+      language: conv.language
     });
 
-    const needNames = { water: 'Paani ki kami 💧', food: 'Khaane ki kami 🍱', medical: 'Medical emergency 🏥' };
-    return `${needNames[needType]} — samajh gaye.
-
-Kitne log affected hain? Sirf number bhejein.
-Jaise: *50*`;
+    return msgs.ask_people;
   }
 
-  // Step 2: Number of people
+  // Step 2: People affected
   if (conv.step === 'ask_people') {
     const num = parseInt(text);
-    if (isNaN(num) || num <= 0) {
-      return `Kripya sirf number bhejein. Jaise: *50*`;
-    }
+    if (isNaN(num) || num <= 0) return msgs.invalid_number;
 
     await saveConversation(senderNumber, {
       step: 'ask_days',
       need_type: conv.need_type,
       affected_people: num,
-      sender: senderNumber
+      sender: senderNumber,
+      language: conv.language
     });
 
-    return `${num} log — noted. ✅
-
-Kitne din se yeh samasya hai? Sirf number bhejein.
-Jaise: *3*`;
+    return msgs.ask_days;
   }
 
   // Step 3: Days unmet
   if (conv.step === 'ask_days') {
     const days = parseInt(text);
-    if (isNaN(days) || days <= 0) {
-      return `Kripya sirf number bhejein. Jaise: *3*`;
-    }
+    if (isNaN(days) || days <= 0) return msgs.invalid_number;
 
     await saveConversation(senderNumber, {
       step: 'ask_location',
       need_type: conv.need_type,
       affected_people: conv.affected_people,
       days_unmet: days,
-      sender: senderNumber
+      sender: senderNumber,
+      language: conv.language
     });
 
-    return `${days} din — noted. ✅
-
-Aapka location kya hai? Village ya area ka naam bhejein.
-Jaise: *Abids, Hyderabad*`;
+    return msgs.ask_location;
   }
 
-  // Step 4: Location — complete the report
+  // Step 4: Location — complete report
   if (conv.step === 'ask_location') {
     const location = text;
-
-    // Build complete report text
     const reportText = `${conv.need_type} crisis at ${location}. ${conv.affected_people} people affected for ${conv.days_unmet} days.`;
 
-    // Delete conversation
     await deleteConversation(senderNumber);
 
-    // Save to Firestore
     const docRef = await db.collection('reports').add({
       raw_text:        reportText,
       sender:          senderNumber,
@@ -290,7 +345,7 @@ Jaise: *Abids, Hyderabad*`;
       location_text:   location,
       location_lat:    0,
       location_lng:    0,
-      language:        'Hindi',
+      language:        conv.language,
       summary:         '',
       affected_people: conv.affected_people,
       days_unmet:      conv.days_unmet,
@@ -299,23 +354,12 @@ Jaise: *Abids, Hyderabad*`;
       timestamp:       admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log(`🤖 Bot report complete: ${reportText} | ID: ${docRef.id}`);
-
-    // Enrich with AI
+    console.log(`🤖 Bot report complete [${conv.language}]: ${reportText}`);
     enrichWithPULSEAI(docRef.id, reportText).catch(console.error);
 
-    const needEmoji = { water: '💧', food: '🍱', medical: '🏥' };
-    return `✅ *Report darj ho gayi!*
-
-${needEmoji[conv.need_type]} *Samasya:* ${conv.need_type}
-👥 *Log affected:* ${conv.affected_people}
-📅 *Din se:* ${conv.days_unmet}
-📍 *Location:* ${location}
-
-Jald hi volunteer bheja jayega. Shukriya! 🙏`;
+    return msgs.confirm(conv.need_type, conv.affected_people, conv.days_unmet, location);
   }
-
-  // Fallback
+    // Fallback
   await deleteConversation(senderNumber);
   return null;
 }
@@ -779,42 +823,77 @@ app.post('/sms-reply', async (req, res) => {
   }
 });
 
-// ─── IVR ROUTES ─────────────────────────────────────────────────────
+// ─── IVR ROUTES — MULTILINGUAL ──────────────────────────────────────
 
-// Field worker gives missed call → Twilio calls back → plays this
 app.post('/incoming-call', (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send(`
     <Response>
-      <Gather action="/handle-keypress" method="POST" numDigits="1" timeout="10">
+      <Gather action="/handle-language" method="POST" numDigits="1" timeout="10">
         <Say language="hi-IN" voice="Polly.Aditi">
           Namaste. PULSE mein aapka swagat hai.
-          Paani ki samasya ke liye 1 dabaiye.
-          Khaane ki samasya ke liye 2 dabaiye.
-          Medical emergency ke liye 3 dabaiye.
+          Hindi ke liye 1 dabaiye.
+          Telugu ke liye 2 dabaiye.
+          Tamil ke liye 3 dabaiye.
+          English ke liye 4 dabaiye.
         </Say>
       </Gather>
-      <Say language="hi-IN">Koi input nahi mila. Phir se call karein.</Say>
+      <Redirect>/incoming-call</Redirect>
     </Response>
   `);
 });
 
-// Handle keypress — start recording
-app.post('/handle-keypress', (req, res) => {
+app.post('/handle-language', (req, res) => {
   const digit = req.body.Digits;
-  const needMap = { '1': 'water', '2': 'food', '3': 'medical' };
-  const needType = needMap[digit] || 'water';
+  const langMap = {
+    '1': { code: 'hi-IN', name: 'Hindi' },
+    '2': { code: 'te-IN', name: 'Telugu' },
+    '3': { code: 'ta-IN', name: 'Tamil' },
+    '4': { code: 'en-IN', name: 'English' }
+  };
+  const lang = langMap[digit] || langMap['1'];
 
-  console.log(`📞 IVR keypress: ${digit} → ${needType}`);
+  const menus = {
+    'hi-IN': 'Paani ki samasya ke liye 1. Khaane ke liye 2. Medical ke liye 3.',
+    'te-IN': 'Neellu samasya ki 1. Tindlu ki 2. Vaidyam ki 3.',
+    'ta-IN': 'Tanni piracchanai ku 1. Unavu ku 2. Maruthuvam ku 3.',
+    'en-IN': 'Press 1 for water. Press 2 for food. Press 3 for medical.'
+  };
 
   res.set('Content-Type', 'text/xml');
   res.send(`
     <Response>
-      <Say language="hi-IN" voice="Polly.Aditi">
-        Aapne ${needType} chunaa. Beep ke baad apni samasya batayein. 30 second hai.
-      </Say>
+      <Gather action="/handle-keypress?lang=${lang.code}&langname=${lang.name}" method="POST" numDigits="1" timeout="10">
+        <Say language="${lang.code}">
+          ${menus[lang.code]}
+        </Say>
+      </Gather>
+    </Response>
+  `);
+});
+
+app.post('/handle-keypress', (req, res) => {
+  const digit = req.body.Digits;
+  const lang = req.query.lang || 'hi-IN';
+  const langname = req.query.langname || 'Hindi';
+  const needMap = { '1': 'water', '2': 'food', '3': 'medical' };
+  const needType = needMap[digit] || 'water';
+
+  const confirms = {
+    'hi-IN': `Aapne ${needType} chunaa. Beep ke baad boliye. 30 second hain.`,
+    'te-IN': `Meeeru ${needType} select chesaaru. Beep taruvata cheppandi. 30 seconds.`,
+    'ta-IN': `Neengal ${needType} therinthukondeergal. Beep-ku pin sollungal. 30 seconds.`,
+    'en-IN': `You selected ${needType}. Speak after the beep. 30 seconds.`
+  };
+
+  console.log(`📞 IVR: ${digit} → ${needType} | ${lang}`);
+
+  res.set('Content-Type', 'text/xml');
+  res.send(`
+    <Response>
+      <Say language="${lang}">${confirms[lang]}</Say>
       <Record
-        action="/handle-recording?need_type=${needType}"
+        action="/handle-recording?need_type=${needType}&lang=${lang}&langname=${langname}"
         method="POST"
         maxLength="30"
         playBeep="true"
@@ -824,16 +903,16 @@ app.post('/handle-keypress', (req, res) => {
   `);
 });
 
-// Handle recording — save to Firestore + send to AI
 app.post('/handle-recording', async (req, res) => {
   try {
     const recordingUrl = req.body.RecordingUrl;
     const callerPhone = req.body.From;
     const needType = req.query.need_type;
+    const lang = req.query.lang || 'hi-IN';
+    const langname = req.query.langname || 'Hindi';
 
-    console.log(`📞 IVR recording from ${callerPhone} | need: ${needType} | url: ${recordingUrl}`);
+    console.log(`📞 IVR recording | ${needType} | ${langname} | ${callerPhone}`);
 
-    // Save to Firestore
     const docRef = await db.collection('reports').add({
       raw_text:      `IVR call — ${needType} problem reported`,
       sender:        callerPhone,
@@ -842,7 +921,7 @@ app.post('/handle-recording', async (req, res) => {
       location_text: '',
       location_lat:  0,
       location_lng:  0,
-      language:      'Hindi',
+      language:      langname,
       summary:       '',
       source:        'ivr',
       recording_url: recordingUrl,
@@ -850,28 +929,26 @@ app.post('/handle-recording', async (req, res) => {
       timestamp:     admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log('✅ IVR report saved!', docRef.id);
+    enrichWithPULSEAI(docRef.id, `${needType} samasya hai`).catch(console.error);
 
-    // Send to AI for analysis
-    enrichWithPULSEAI(docRef.id, `${needType} samasya hai, madad chahiye`).catch(console.error);
+    const thanks = {
+      'hi-IN': 'Shukriya. Aapki report darj ho gayi. Jald madad aayegi.',
+      'te-IN': 'Dhanyavaadalu. Mee report nondinchabadindi. Sahaayam vasthundi.',
+      'ta-IN': 'Nandri. Ungal arikkai padhivu seyyappattu. Unavu varugiradu.',
+      'en-IN': 'Thank you. Your report has been saved. Help is on the way.'
+    };
 
     res.set('Content-Type', 'text/xml');
     res.send(`
       <Response>
-        <Say language="hi-IN" voice="Polly.Aditi">
-          Shukriya. Aapki report darj kar li gayi hai. Jald hi madad bheja jayega.
-        </Say>
+        <Say language="${lang}">${thanks[lang]}</Say>
       </Response>
     `);
 
   } catch (error) {
-    console.error('❌ IVR recording error:', error);
+    console.error('❌ IVR error:', error);
     res.set('Content-Type', 'text/xml');
-    res.send(`
-      <Response>
-        <Say>Kuch galat hua. Phir se try karein.</Say>
-      </Response>
-    `);
+    res.send(`<Response><Say>Error occurred. Please try again.</Say></Response>`);
   }
 });
 
