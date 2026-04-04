@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { GoogleMap, useJsApiLoader, Circle } from '@react-google-maps/api'
-import { collection, onSnapshot, getDocs, query, where } from 'firebase/firestore'
+import { collection, onSnapshot, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
 
@@ -21,14 +21,32 @@ function Dashboard() {
   })
 
   useEffect(() => {
-    const unsub1 = onSnapshot(collection(db, 'clusters'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setClusters(data)
-    })
-    const unsub2 = onSnapshot(collection(db, 'reports'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setReports(data.slice(0, 20))
-    })
+    // Listen to clusters live
+    const unsub1 = onSnapshot(
+      collection(db, 'clusters'),
+      (snapshot) => {
+        const data = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(c => c.centroid_lat && c.centroid_lon) // only show mapped clusters
+          .sort((a, b) => b.combined_urgency - a.combined_urgency) // worst first
+        setClusters(data)
+      }
+    )
+
+    // Listen to analyzed reports, newest first
+    const unsub2 = onSnapshot(
+      query(
+        collection(db, 'reports'),
+        where('status', '==', 'analyzed'),
+        orderBy('timestamp', 'desc'),
+        limit(20)
+      ),
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        setReports(data)
+      }
+    )
+
     return () => { unsub1(); unsub2() }
   }, [])
 
@@ -169,7 +187,9 @@ function Dashboard() {
                 {[
                   { label: 'NEED TYPE', value: selected.need_type || 'Unknown' },
                   { label: 'REPORTS IN CLUSTER', value: selected.report_count || 1 },
-                  { label: 'LOCATION', value: (selected.centroid_lat?.toFixed(4) || '') + ', ' + (selected.centroid_lon?.toFixed(4) || '') },
+                  { label: 'VILLAGES AFFECTED', value: selected.village_count || 1 },
+                  { label: 'PEOPLE AFFECTED', value: selected.total_affected ? `${selected.total_affected.toLocaleString()} people` : 'Unknown' },
+                  { label: 'DAYS UNMET', value: selected.days_unmet ? `${selected.days_unmet} days` : 'Unknown' },
                 ].map(item => (
                   <div key={item.label} className="bg-gray-700 rounded-lg p-3">
                     <p className="text-gray-400 text-xs mb-1">{item.label}</p>

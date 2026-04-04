@@ -1,5 +1,6 @@
+//reports.jsx
 import { useEffect, useState } from 'react'
-import { collection, onSnapshot } from 'firebase/firestore'
+import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
 
@@ -8,7 +9,12 @@ function Reports() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'reports'), (snapshot) => {
+    const q = query(
+      collection(db, 'reports'),
+      where('status', '==', 'analyzed'),
+      orderBy('timestamp', 'desc')
+    )
+    const unsub = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setReports(data)
       setLoading(false)

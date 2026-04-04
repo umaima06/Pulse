@@ -48,6 +48,63 @@ install:
 2. pip install groq
 used Nominatim which is OpenStreetMap's geocoder. Works for any location in India or anywhere in the world. No API key, no billing, completely free.
 
+@ day 3,4,5,6 ------
+# Overview
+Built the complete AI brain for PULSE X. Every field report that enters 
+the system — WhatsApp, SMS, or manual intake — passes through this layer 
+before anything else happens.
+
+# What I Built
+
+# Core AI Pipeline
+- **intelligence.py** — Takes any raw text in any Indian language (Hindi, 
+  Telugu, Tamil, English, mixed) and returns structured crisis data using 
+  Groq's Llama 3.3 70B model with Gemini 2.5 Flash as automatic fallback
+- **clustering.py** — Groups nearby reports of the same crisis type into 
+  clusters using Haversine distance formula (30km radius)
+- **matching.py** — Ranks available volunteers by skill match, distance, 
+  and availability for each crisis cluster
+- **report_generator.py** — Generates professional 3-paragraph NGO impact 
+  reports and 2-sentence predictive pre-alerts using Groq
+- **config.py** — All settings in one place. Crisis types, urgency rules, 
+  skill matrix, thresholds — nothing hardcoded anywhere else
+
+  # Frontend Integration (Done by Person A)
+
+Connected all AI endpoints to the React frontend:
+
+- **Dashboard.jsx** — clusters now sorted by urgency, reports filtered 
+  to analyzed only, cluster detail panel shows villages/people/days instead 
+  of raw coordinates
+- **Reports.jsx** — shows only analyzed reports ordered by newest first
+- **Intake.jsx** — manual report form now calls `/analyze` directly, 
+  gets real AI analysis back, saves enriched data straight to Firestore 
+  with real coordinates. Shows urgency score and summary to coordinator 
+  immediately after submission.
+- **firebase.js** — confirmed working with project credentials
+- **Firestore indexes** — created composite indexes for 
+  `status + timestamp` and `status + location_lat` queries
+
+# API Server
+- **app.py** — Flask server exposing all AI functions as HTTP endpoints 
+  on port 5000. Node.js backend and React frontend both call this.
+
+# Demo Data
+- **seed_data.py** — Seeds 25 realistic crisis reports across 15 Indian 
+  states and 20 volunteer profiles into Firestore
+
+# API Endpoints
+
+| Endpoint | Does what |
+|----------|-----------|
+| GET /health | Check server is alive |
+| POST /analyze | Any text → structured crisis data + real coordinates |
+| POST /cluster | Array of reports → grouped crisis clusters |
+| POST /match | Cluster + volunteers → ranked matches |
+| POST /escalate | Recalculates urgency scores over time |
+| POST /generate-report | Cluster data → 3-paragraph NGO report |
+| POST /pre-alert | Region + pattern → predictive warning |
+
 # PULSE X — AI Layer (Person A)
 
 
