@@ -235,6 +235,7 @@ python seed_data.py reset   # fresh start
 - Express.js backend server running on port 3000
 - Twilio WhatsApp + SMS dual intake pipeline
 - IVR voice intake system in Hindi
+- WhatsApp conversational bot for guided report collection
 - Volunteer registration, geocoding, matching and auto-assignment
 - Automatic task creation, tracking and status updates
 - WhatsApp + SMS dual notifications to volunteers
@@ -314,13 +315,39 @@ python seed_data.py reset   # fresh start
 - Added `/demo-trigger` endpoint — fires 3 realistic demo reports automatically for live demo
 
 ---
-
+### Day 3
+- Built WhatsApp Conversational Bot — guided report collection for field workers:
+  - If message is vague (e.g. "help", "problem hai") → bot starts guided conversation
+  - If message is detailed → processed directly, bot skipped
+  - Bot asks 4 questions: need type → people affected → days unmet → location
+  - Conversation state stored in new Firestore `/conversations` collection
+  - Conversations expire after 30 minutes automatically
+  - Completed conversation creates a structured report in Firestore
+  - AI enrichment fires automatically after bot completes
+  - Field worker gets confirmation in Hindi with full report summary
+  - Supports Hindi keywords (paani, khaana, bimaar etc.) alongside numbers
+- Built Predictive Alert System:
+  - Analyzes historical reports by region + need_type + month
+  - Predicts upcoming crises based on seasonal patterns
+  - Generates alerts with HIGH/MEDIUM/LOW confidence
+  - Saves to new Firestore `/predictive_alerts` collection
+  - Sends WhatsApp warning to NGO admin automatically
+  - Runs daily, also runs on server startup
+  - GET `/predictive-alerts` returns all active alerts for dashboard
+- Built Multi-NGO Data Isolation:
+  - Every report, volunteer, cluster tagged with `ngo_id`
+  - NGO-scoped endpoints: `/ngo-reports`, `/ngo-volunteers`, `/ngo-clusters`, `/ngo-analytics`
+  - Each NGO only sees their own data
+  - NGO ID passed via `x-ngo-id` header or request body
+  - `/register-volunteer-ngo` tags volunteers to specific NGO
+    
 ### How The Full Pipeline Works
 ```
-Field Worker intake — three methods:
-  1. WhatsApp message → (sandbox number)
-  2. SMS → (real number)
-  3. Voice/IVR call → real number → Hindi menu → record problem
+Field Worker intake — four methods:
+  1. WhatsApp detailed message → processed directly (sandbox number)
+  2. WhatsApp vague message → guided bot conversation (sandbox number) → structured report 
+  3. SMS → (real Twilio number)
+  4. Voice/IVR call → real number → Hindi menu → record problem
         ↓
 Express server receives
         ↓
@@ -349,7 +376,7 @@ Hourly escalation runs — urgency increases for unresolved clusters
 | Route | Method | What it does |
 |---|---|---|
 | `/` | GET | Test server is running |
-| `/incoming-message` | POST | Receives WhatsApp/replies from field workers and volunteers |
+| `/incoming-message` | POST | Receives WhatsApp — handles bot, volunteer replies, direct reports |
 | `/incoming-call` | POST | Handles IVR voice call |
 | `/handle-keypress` | POST | Processes IVR menu keypress |
 | `/handle-recording` | POST | Saves voice recording to Firestore |
@@ -365,7 +392,18 @@ Hourly escalation runs — urgency increases for unresolved clusters
 | `/demo-trigger` | POST | Fires full demo sequence automatically |
 
 ---
+### Firestore Collections
 
+| Collection | Purpose |
+|---|---|
+| `/reports` | All field reports — WhatsApp, SMS, IVR, bot |
+| `/volunteers` | Registered volunteers with skills and location |
+| `/clusters` | Grouped nearby same-type reports |
+| `/tasks` | Volunteer assignments |
+| `/ngos` | Registered NGO organizations |
+| `/conversations` | Active WhatsApp bot conversations (auto-expire 30 mins) |
+
+---
 ### Installation
 ```powershell
 cd backend

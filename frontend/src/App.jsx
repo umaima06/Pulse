@@ -10,6 +10,8 @@ import Reports from './pages/Reports'
 import Intake from './pages/Intake'
 import VolunteerPortal from './pages/VolunteerPortal'
 import NotFound from './pages/NotFound'
+import PredictiveAlerts from './pages/PredictiveAlerts'
+import Analytics from './pages/Analytics'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -25,6 +27,8 @@ function App() {
         <Route path="/intake" element={<ProtectedRoute><Intake /></ProtectedRoute>} />
         <Route path="/volunteer" element={<Volunteer />} />
         <Route path="/my-tasks" element={<VolunteerPortal />} />
+        <Route path="/predictive-alerts" element={<PredictiveAlerts />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

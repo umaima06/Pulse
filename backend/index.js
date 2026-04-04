@@ -128,6 +128,241 @@ fetch('http://localhost:5000/escalate', {
     console.error('❌ PULSE AI failed:', err.message);
   }
 }
+// ─── WHATSAPP CONVERSATIONAL BOT ────────────────────────────────────
+
+// Check if message has enough info to skip conversation
+function isDetailedReport(text) {
+  const hasLocation = /abids|hyderabad|mumbai|delhi|chennai|kolkata|bangalore|pune|jaipur|lucknow|village|nagar|pur|bad|abad|puram/i.test(text);
+  const hasNumber = /\d+/.test(text);
+  const hasNeedType = /paani|water|khaana|food|medical|bimaar|doctor|hospital|khana|pani/i.test(text);
+  return hasLocation && (hasNumber || hasNeedType);
+}
+
+// Get or create conversation state for a sender
+async function getConversation(senderNumber) {
+  const convRef = db.collection('conversations').doc(senderNumber.replace(/[^a-zA-Z0-9]/g, '_'));
+  const doc = await convRef.get();
+  if (!doc.exists) return null;
+  const data = doc.data();
+  // Expire conversations older than 30 minutes
+  const age = Date.now() - (data.updated_at?.toMillis() || 0);
+  if (age > 30 * 60 * 1000) {
+    await convRef.delete();
+    return null;
+  }
+  return { ref: convRef, ...data };
+}
+
+// Save conversation state
+async function saveConversation(senderNumber, state) {
+  const convRef = db.collection('conversations').doc(senderNumber.replace(/[^a-zA-Z0-9]/g, '_'));
+  await convRef.set({
+    ...state,
+    updated_at: admin.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+// Delete conversation
+async function deleteConversation(senderNumber) {
+  const convRef = db.collection('conversations').doc(senderNumber.replace(/[^a-zA-Z0-9]/g, '_'));
+  await convRef.delete();
+}
+
+// Main bot handler — returns reply text or null if should process as report
+// Detect language using AI
+async function detectLanguage(text) {
+  try {
+    const res = await fetch('http://localhost:5000/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+    return data?.data?.language_detected || 'Hindi';
+  } catch {
+    return 'Hindi';
+  }
+}
+
+// Get bot messages in detected language
+function getBotMessages(language) {
+  const messages = {
+    'Telugu': {
+      welcome: 'Namaskaram! PULSE lo mee swaagatam. 🙏\n\nEmi samasya?\n*1* - Neellu samasya 💧\n*2* - Tindlu samasya 🍱\n*3* - Vaidya avasaram 🏥',
+      invalid_need: 'Dayachesi *1*, *2*, leda *3* matrame pamandi.',
+      ask_people: 'Entha mandi prabhavitam ayyaru? Kevalamu number pamandi.\nUdaharana: *50*',
+      invalid_number: 'Dayachesi kevalamu number pamandi. Udaharana: *50*',
+      ask_days: 'Ee samasya enni roju nundi undi? Number pamandi.\nUdaharana: *3*',
+      ask_location: 'Mee location emi? Village leda area peru pamandi.\nUdaharana: *Abids, Hyderabad*',
+      confirm: (need, people, days, loc) => `✅ *Report nondinchabadindi!*\n\n💧 *Samasya:* ${need}\n👥 *Prabhavitam:* ${people}\n📅 *Rojulu:* ${days}\n📍 *Location:* ${loc}\n\nVeelaithe volunteer pampadamu. Dhanyavaadalu! 🙏`
+    },
+    'Tamil': {
+      welcome: 'Vanakkam! PULSE-il ungalai varaverkiRom. 🙏\n\nEantha piracchanai?\n*1* - Tanni piracchanai 💧\n*2* - Unavu piracchanai 🍱\n*3* - Maruthuvam 🏥',
+      invalid_need: 'Thayavu seithu *1*, *2*, alladu *3* matrum anupungal.',
+      ask_people: 'Ethanai peyar pathikkapattanar? Eppadi number anupungal.\nEthugaranam: *50*',
+      invalid_number: 'Thayavu seithu oru number matrum anupungal. Ethugaranam: *50*',
+      ask_days: 'Ee piracchanai ethanai naatkalaga irukku? Number anupungal.\nEthugaranam: *3*',
+      ask_location: 'Ungal idam enna? Kiraamam alladu pகுதி peyar anupungal.\nEthugaranam: *Chennai*',
+      confirm: (need, people, days, loc) => `✅ *Arikkai padhivu seyyappattu!*\n\n💧 *Piracchanai:* ${need}\n👥 *Pathikkapattavar:* ${people}\n📅 *Naatkal:* ${days}\n📍 *Idam:* ${loc}\n\nVirai vil thoNdar anupappaduvaar. Nandri! 🙏`
+    },
+    'Marathi': {
+      welcome: 'Namaskar! PULSE madhe aapale swagat ahe. 🙏\n\nKay samasya ahe?\n*1* - Paanyanchi kami 💧\n*2* - Jevanachi kami 🍱\n*3* - Vaidyakiy nadavnu 🏥',
+      invalid_need: 'Kripaya fakt *1*, *2*, kiva *3* pathava.',
+      ask_people: 'Kiti log prabhavit ahet? Fakat number pathava.\nUdaharana: *50*',
+      invalid_number: 'Kripaya fakt number pathava. Udaharana: *50*',
+      ask_days: 'Hi samasya kiti divasanpasun ahe? Number pathava.\nUdaharana: *3*',
+      ask_location: 'Tumcha location kaay ahe? Gaav kiva bhagacha nav pathava.\nUdaharana: *Pune*',
+      confirm: (need, people, days, loc) => `✅ *Ahewal nondavla gela!*\n\n💧 *Samasya:* ${need}\n👥 *Prabhavit:* ${people}\n📅 *Divas:* ${days}\n📍 *Sthaan:* ${loc}\n\nLavkarach volunteer pathavla jail. Dhanyavaad! 🙏`
+    },
+    'Bengali': {
+      welcome: 'Namaskar! PULSE-e apnake swagat. 🙏\n\nKi samasya?\n*1* - Pani samasya 💧\n*2* - Khabar samasya 🍱\n*3* - Chikitsa acche 🏥',
+      invalid_need: 'Onugraha kore sudhu *1*, *2*, ba *3* pathaan.',
+      ask_people: 'Kotojon prabhavit? Sudhu number pathaan.\nUdaharan: *50*',
+      invalid_number: 'Onugraha kore sudhu number pathaan. Udaharan: *50*',
+      ask_days: 'Ei samasya koto din dhore? Number pathaan.\nUdaharan: *3*',
+      ask_location: 'Apnar location ki? Gram ba elaka naam pathaan.\nUdaharan: *Kolkata*',
+      confirm: (need, people, days, loc) => `✅ *Report nথিভুক্ত হয়েছে!*\n\n💧 *Samasya:* ${need}\n👥 *Prabhavit:* ${people}\n📅 *Din:* ${days}\n📍 *Location:* ${loc}\n\nShighroi volunteer pathano hobe. Dhanyabad! 🙏`
+    },
+    'English': {
+      welcome: 'Hello! Welcome to PULSE. 🙏\n\nWhat is the problem?\n*1* - Water shortage 💧\n*2* - Food shortage 🍱\n*3* - Medical emergency 🏥',
+      invalid_need: 'Please reply with only *1*, *2*, or *3*.',
+      ask_people: 'How many people are affected? Send only a number.\nExample: *50*',
+      invalid_number: 'Please send only a number. Example: *50*',
+      ask_days: 'How many days has this problem existed? Send a number.\nExample: *3*',
+      ask_location: 'What is your location? Send village or area name.\nExample: *Abids, Hyderabad*',
+      confirm: (need, people, days, loc) => `✅ *Report registered!*\n\n💧 *Problem:* ${need}\n👥 *Affected:* ${people}\n📅 *Days:* ${days}\n📍 *Location:* ${loc}\n\nA volunteer will be sent soon. Thank you! 🙏`
+    },
+    'Hindi': {
+      welcome: 'Namaste! PULSE mein aapka swagat hai. 🙏\n\nKya samasya hai?\n*1* - Paani ki kami 💧\n*2* - Khaane ki kami 🍱\n*3* - Medical emergency 🏥',
+      invalid_need: 'Kripaya sirf *1*, *2*, ya *3* bhejein.',
+      ask_people: 'Kitne log affected hain? Sirf number bhejein.\nJaise: *50*',
+      invalid_number: 'Kripaya sirf number bhejein. Jaise: *50*',
+      ask_days: 'Kitne din se yeh samasya hai? Number bhejein.\nJaise: *3*',
+      ask_location: 'Aapka location kya hai? Village ya area ka naam bhejein.\nJaise: *Abids, Hyderabad*',
+      confirm: (need, people, days, loc) => `✅ *Report darj ho gayi!*\n\n💧 *Samasya:* ${need}\n👥 *Log affected:* ${people}\n📅 *Din se:* ${days}\n📍 *Location:* ${loc}\n\nJald hi volunteer bheja jayega. Shukriya! 🙏`
+    }
+  };
+  return messages[language] || messages['Hindi'];
+}
+
+// Check if message has enough info to skip conversation
+function isDetailedReport(text) {
+  const hasNumber = /\d+/.test(text);
+  const wordCount = text.trim().split(/\s+/).length;
+  // If message has 6+ words and a number, treat as detailed report
+  return wordCount >= 6 && hasNumber;
+}
+
+async function handleBotConversation(senderNumber, incomingText) {
+  const text = incomingText.trim();
+  const upper = text.toUpperCase();
+
+  const conv = await getConversation(senderNumber);
+
+  // No active conversation
+  if (!conv) {
+    if (isDetailedReport(text)) return null;
+
+    // Detect language
+    const language = await detectLanguage(text);
+    const msgs = getBotMessages(language);
+
+    await saveConversation(senderNumber, {
+      step: 'ask_need_type',
+      sender: senderNumber,
+      language
+    });
+
+    return msgs.welcome;
+  }
+
+  const msgs = getBotMessages(conv.language || 'Hindi');
+
+  // Step 1: Need type
+  if (conv.step === 'ask_need_type') {
+    const needMap = { '1': 'water', '2': 'food', '3': 'medical' };
+    const needType = needMap[text];
+
+    if (!needType) {
+      return msgs.invalid_need;
+    }
+
+    await saveConversation(senderNumber, {
+      step: 'ask_people',
+      need_type: needType,
+      sender: senderNumber,
+      language: conv.language
+    });
+
+    return msgs.ask_people;
+  }
+
+  // Step 2: People affected
+  if (conv.step === 'ask_people') {
+    const num = parseInt(text);
+    if (isNaN(num) || num <= 0) return msgs.invalid_number;
+
+    await saveConversation(senderNumber, {
+      step: 'ask_days',
+      need_type: conv.need_type,
+      affected_people: num,
+      sender: senderNumber,
+      language: conv.language
+    });
+
+    return msgs.ask_days;
+  }
+
+  // Step 3: Days unmet
+  if (conv.step === 'ask_days') {
+    const days = parseInt(text);
+    if (isNaN(days) || days <= 0) return msgs.invalid_number;
+
+    await saveConversation(senderNumber, {
+      step: 'ask_location',
+      need_type: conv.need_type,
+      affected_people: conv.affected_people,
+      days_unmet: days,
+      sender: senderNumber,
+      language: conv.language
+    });
+
+    return msgs.ask_location;
+  }
+
+  // Step 4: Location — complete report
+  if (conv.step === 'ask_location') {
+    const location = text;
+    const reportText = `${conv.need_type} crisis at ${location}. ${conv.affected_people} people affected for ${conv.days_unmet} days.`;
+
+    await deleteConversation(senderNumber);
+
+    const docRef = await db.collection('reports').add({
+      raw_text:        reportText,
+      sender:          senderNumber,
+      need_type:       conv.need_type,
+      urgency_score:   0,
+      location_text:   location,
+      location_lat:    0,
+      location_lng:    0,
+      language:        conv.language,
+      summary:         '',
+      affected_people: conv.affected_people,
+      days_unmet:      conv.days_unmet,
+      status:          'new',
+      source:          'whatsapp_bot',
+      timestamp:       admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`🤖 Bot report complete [${conv.language}]: ${reportText}`);
+    enrichWithPULSEAI(docRef.id, reportText).catch(console.error);
+
+    return msgs.confirm(conv.need_type, conv.affected_people, conv.days_unmet, location);
+  }
+    // Fallback
+  await deleteConversation(senderNumber);
+  return null;
+}
 
 // ─── ROUTES ─────────────────────────────────────────────────────────
 
@@ -201,8 +436,22 @@ app.post('/incoming-message', async (req, res) => {
       }
     }
 
-    // Otherwise treat as a field report
-    console.log(`📩 New report from ${senderNumber}: ${incomingText}`);
+// Check bot conversation first
+    const botReply = await handleBotConversation(senderNumber, incomingText);
+
+    if (botReply !== null) {
+      // Bot is handling this conversation
+      console.log(`🤖 Bot reply to ${senderNumber}`);
+      res.set('Content-Type', 'text/xml');
+      return res.send(`
+        <Response>
+          <Message>${botReply}</Message>
+        </Response>
+      `);
+    }
+
+    // Bot said null = detailed report, process directly
+    console.log(`📩 Direct report from ${senderNumber}: ${incomingText}`);
 
     const docRef = await db.collection('reports').add({
       raw_text:      incomingText,
@@ -574,42 +823,77 @@ app.post('/sms-reply', async (req, res) => {
   }
 });
 
-// ─── IVR ROUTES ─────────────────────────────────────────────────────
+// ─── IVR ROUTES — MULTILINGUAL ──────────────────────────────────────
 
-// Field worker gives missed call → Twilio calls back → plays this
 app.post('/incoming-call', (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send(`
     <Response>
-      <Gather action="/handle-keypress" method="POST" numDigits="1" timeout="10">
+      <Gather action="/handle-language" method="POST" numDigits="1" timeout="10">
         <Say language="hi-IN" voice="Polly.Aditi">
           Namaste. PULSE mein aapka swagat hai.
-          Paani ki samasya ke liye 1 dabaiye.
-          Khaane ki samasya ke liye 2 dabaiye.
-          Medical emergency ke liye 3 dabaiye.
+          Hindi ke liye 1 dabaiye.
+          Telugu ke liye 2 dabaiye.
+          Tamil ke liye 3 dabaiye.
+          English ke liye 4 dabaiye.
         </Say>
       </Gather>
-      <Say language="hi-IN">Koi input nahi mila. Phir se call karein.</Say>
+      <Redirect>/incoming-call</Redirect>
     </Response>
   `);
 });
 
-// Handle keypress — start recording
-app.post('/handle-keypress', (req, res) => {
+app.post('/handle-language', (req, res) => {
   const digit = req.body.Digits;
-  const needMap = { '1': 'water', '2': 'food', '3': 'medical' };
-  const needType = needMap[digit] || 'water';
+  const langMap = {
+    '1': { code: 'hi-IN', name: 'Hindi' },
+    '2': { code: 'te-IN', name: 'Telugu' },
+    '3': { code: 'ta-IN', name: 'Tamil' },
+    '4': { code: 'en-IN', name: 'English' }
+  };
+  const lang = langMap[digit] || langMap['1'];
 
-  console.log(`📞 IVR keypress: ${digit} → ${needType}`);
+  const menus = {
+    'hi-IN': 'Paani ki samasya ke liye 1. Khaane ke liye 2. Medical ke liye 3.',
+    'te-IN': 'Neellu samasya ki 1. Tindlu ki 2. Vaidyam ki 3.',
+    'ta-IN': 'Tanni piracchanai ku 1. Unavu ku 2. Maruthuvam ku 3.',
+    'en-IN': 'Press 1 for water. Press 2 for food. Press 3 for medical.'
+  };
 
   res.set('Content-Type', 'text/xml');
   res.send(`
     <Response>
-      <Say language="hi-IN" voice="Polly.Aditi">
-        Aapne ${needType} chunaa. Beep ke baad apni samasya batayein. 30 second hai.
-      </Say>
+      <Gather action="/handle-keypress?lang=${lang.code}&langname=${lang.name}" method="POST" numDigits="1" timeout="10">
+        <Say language="${lang.code}">
+          ${menus[lang.code]}
+        </Say>
+      </Gather>
+    </Response>
+  `);
+});
+
+app.post('/handle-keypress', (req, res) => {
+  const digit = req.body.Digits;
+  const lang = req.query.lang || 'hi-IN';
+  const langname = req.query.langname || 'Hindi';
+  const needMap = { '1': 'water', '2': 'food', '3': 'medical' };
+  const needType = needMap[digit] || 'water';
+
+  const confirms = {
+    'hi-IN': `Aapne ${needType} chunaa. Beep ke baad boliye. 30 second hain.`,
+    'te-IN': `Meeeru ${needType} select chesaaru. Beep taruvata cheppandi. 30 seconds.`,
+    'ta-IN': `Neengal ${needType} therinthukondeergal. Beep-ku pin sollungal. 30 seconds.`,
+    'en-IN': `You selected ${needType}. Speak after the beep. 30 seconds.`
+  };
+
+  console.log(`📞 IVR: ${digit} → ${needType} | ${lang}`);
+
+  res.set('Content-Type', 'text/xml');
+  res.send(`
+    <Response>
+      <Say language="${lang}">${confirms[lang]}</Say>
       <Record
-        action="/handle-recording?need_type=${needType}"
+        action="/handle-recording?need_type=${needType}&lang=${lang}&langname=${langname}"
         method="POST"
         maxLength="30"
         playBeep="true"
@@ -619,16 +903,16 @@ app.post('/handle-keypress', (req, res) => {
   `);
 });
 
-// Handle recording — save to Firestore + send to AI
 app.post('/handle-recording', async (req, res) => {
   try {
     const recordingUrl = req.body.RecordingUrl;
     const callerPhone = req.body.From;
     const needType = req.query.need_type;
+    const lang = req.query.lang || 'hi-IN';
+    const langname = req.query.langname || 'Hindi';
 
-    console.log(`📞 IVR recording from ${callerPhone} | need: ${needType} | url: ${recordingUrl}`);
+    console.log(`📞 IVR recording | ${needType} | ${langname} | ${callerPhone}`);
 
-    // Save to Firestore
     const docRef = await db.collection('reports').add({
       raw_text:      `IVR call — ${needType} problem reported`,
       sender:        callerPhone,
@@ -637,7 +921,7 @@ app.post('/handle-recording', async (req, res) => {
       location_text: '',
       location_lat:  0,
       location_lng:  0,
-      language:      'Hindi',
+      language:      langname,
       summary:       '',
       source:        'ivr',
       recording_url: recordingUrl,
@@ -645,28 +929,26 @@ app.post('/handle-recording', async (req, res) => {
       timestamp:     admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log('✅ IVR report saved!', docRef.id);
+    enrichWithPULSEAI(docRef.id, `${needType} samasya hai`).catch(console.error);
 
-    // Send to AI for analysis
-    enrichWithPULSEAI(docRef.id, `${needType} samasya hai, madad chahiye`).catch(console.error);
+    const thanks = {
+      'hi-IN': 'Shukriya. Aapki report darj ho gayi. Jald madad aayegi.',
+      'te-IN': 'Dhanyavaadalu. Mee report nondinchabadindi. Sahaayam vasthundi.',
+      'ta-IN': 'Nandri. Ungal arikkai padhivu seyyappattu. Unavu varugiradu.',
+      'en-IN': 'Thank you. Your report has been saved. Help is on the way.'
+    };
 
     res.set('Content-Type', 'text/xml');
     res.send(`
       <Response>
-        <Say language="hi-IN" voice="Polly.Aditi">
-          Shukriya. Aapki report darj kar li gayi hai. Jald hi madad bheja jayega.
-        </Say>
+        <Say language="${lang}">${thanks[lang]}</Say>
       </Response>
     `);
 
   } catch (error) {
-    console.error('❌ IVR recording error:', error);
+    console.error('❌ IVR error:', error);
     res.set('Content-Type', 'text/xml');
-    res.send(`
-      <Response>
-        <Say>Kuch galat hua. Phir se try karein.</Say>
-      </Response>
-    `);
+    res.send(`<Response><Say>Error occurred. Please try again.</Say></Response>`);
   }
 });
 
@@ -937,6 +1219,300 @@ app.post('/demo-trigger', async (req, res) => {
   } catch (error) {
     console.error('❌ Demo trigger error:', error);
     res.status(500).json({ error: 'Demo trigger failed' });
+  }
+});
+
+// ─── PREDICTIVE ALERTS ──────────────────────────────────────────────
+
+async function generatePredictiveAlerts() {
+  try {
+    console.log('🔮 Running predictive alert analysis...');
+
+    const now = new Date();
+    const currentMonth = now.getMonth(); // 0-11
+    const currentDay = now.getDate();
+
+    // Get all historical reports
+    const snapshot = await db.collection('reports')
+      .where('status', '==', 'analyzed')
+      .get();
+
+    if (snapshot.empty) return;
+
+    // Group reports by region + need_type + month
+    const patterns = {};
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      if (!data.district && !data.location_text) return;
+      if (!data.need_type) return;
+
+      const timestamp = data.timestamp?.toDate() || new Date();
+      const month = timestamp.getMonth();
+      const region = data.district || data.location_text;
+      const key = `${region}__${data.need_type}__${month}`;
+
+      if (!patterns[key]) {
+        patterns[key] = {
+          region,
+          need_type: data.need_type,
+          month,
+          count: 0,
+          total_affected: 0
+        };
+      }
+      patterns[key].count++;
+      patterns[key].total_affected += data.affected_people || 0;
+    });
+
+    // Check if current month+1 matches any historical pattern
+    const nextMonth = (currentMonth + 1) % 12;
+    const alerts = [];
+
+    for (const key of Object.keys(patterns)) {
+      const pattern = patterns[key];
+
+      // If this region+need_type had 2+ reports in the same month historically
+      if (pattern.month === nextMonth && pattern.count >= 2) {
+        alerts.push({
+          region: pattern.region,
+          need_type: pattern.need_type,
+          predicted_month: new Date(2026, nextMonth, 1).toLocaleString('default', { month: 'long' }),
+          historical_count: pattern.count,
+          avg_affected: Math.round(pattern.total_affected / pattern.count),
+          confidence: pattern.count >= 4 ? 'HIGH' : pattern.count >= 2 ? 'MEDIUM' : 'LOW'
+        });
+      }
+    }
+
+    if (alerts.length === 0) {
+      console.log('🔮 No predictive alerts generated');
+      return;
+    }
+
+    // Save alerts to Firestore
+    const batch = db.batch();
+    for (const alert of alerts) {
+      const ref = db.collection('predictive_alerts').doc(
+        `${alert.region}_${alert.need_type}_${alert.predicted_month}`.replace(/[^a-zA-Z0-9]/g, '_')
+      );
+      batch.set(ref, {
+        ...alert,
+        status: 'active',
+        created_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    await batch.commit();
+
+    console.log(`🔮 ${alerts.length} predictive alerts generated`);
+
+    // Notify all NGOs via WhatsApp
+    if (alerts.length > 0 && process.env.TWILIO_PHONE_NUMBER) {
+      const twilio = require('twilio')(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      );
+
+      const alertMsg = alerts.slice(0, 3).map(a =>
+        `⚠️ ${a.region}: ${a.need_type} crisis predicted for ${a.predicted_month} (${a.confidence} confidence, ~${a.avg_affected} people)`
+      ).join('\n');
+
+      // Send to NGO admin number if configured
+      if (process.env.NGO_ADMIN_PHONE) {
+        await twilio.messages.create({
+          body: `🔮 PULSE Predictive Alert:\n\n${alertMsg}\n\nPre-position volunteers now.`,
+          from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+          to: `whatsapp:${process.env.NGO_ADMIN_PHONE}`
+        });
+        console.log('📱 Predictive alert sent to NGO admin');
+      }
+    }
+
+  } catch (err) {
+    console.error('❌ Predictive alert error:', err.message);
+  }
+}
+
+// Run predictive alerts daily at midnight
+setInterval(generatePredictiveAlerts, 24 * 60 * 60 * 1000);
+// Also run once on startup after 10 seconds
+setTimeout(generatePredictiveAlerts, 10000);
+console.log('🔮 Predictive alert system started');
+
+// GET endpoint — fetch current predictive alerts
+app.get('/predictive-alerts', async (req, res) => {
+  try {
+    const snapshot = await db.collection('predictive_alerts')
+      .where('status', '==', 'active')
+      .get();
+
+    const alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, alerts });
+
+  } catch (error) {
+    console.error('❌ Fetch alerts error:', error);
+    res.status(500).json({ error: 'Failed to fetch alerts' });
+  }
+});
+
+// ─── MULTI-NGO DATA ISOLATION ────────────────────────────────────────
+
+// Get NGO ID from request — from token or header
+function getNgoId(req) {
+  return req.headers['x-ngo-id'] || req.body?.ngo_id || 'default';
+}
+
+// NGO-scoped reports
+app.get('/ngo-reports', async (req, res) => {
+  try {
+    const ngoId = getNgoId(req);
+
+    const snapshot = await db.collection('reports')
+      .where('ngo_id', '==', ngoId)
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
+
+    const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, reports });
+
+  } catch (error) {
+    console.error('❌ NGO reports error:', error);
+    res.status(500).json({ error: 'Failed to fetch reports' });
+  }
+});
+
+// NGO-scoped volunteers
+app.get('/ngo-volunteers', async (req, res) => {
+  try {
+    const ngoId = getNgoId(req);
+
+    const snapshot = await db.collection('volunteers')
+      .where('ngo_id', '==', ngoId)
+      .get();
+
+    const volunteers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, volunteers });
+
+  } catch (error) {
+    console.error('❌ NGO volunteers error:', error);
+    res.status(500).json({ error: 'Failed to fetch volunteers' });
+  }
+});
+
+// NGO-scoped clusters
+app.get('/ngo-clusters', async (req, res) => {
+  try {
+    const ngoId = getNgoId(req);
+
+    const snapshot = await db.collection('clusters')
+      .where('ngo_id', '==', ngoId)
+      .get();
+
+    const clusters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, clusters });
+
+  } catch (error) {
+    console.error('❌ NGO clusters error:', error);
+    res.status(500).json({ error: 'Failed to fetch clusters' });
+  }
+});
+
+// NGO-scoped analytics
+app.get('/ngo-analytics', async (req, res) => {
+  try {
+    const ngoId = getNgoId(req);
+
+    const [reportsSnap, volunteersSnap, clustersSnap, tasksSnap] = await Promise.all([
+      db.collection('reports').where('ngo_id', '==', ngoId).get(),
+      db.collection('volunteers').where('ngo_id', '==', ngoId).get(),
+      db.collection('clusters').where('ngo_id', '==', ngoId).get(),
+      db.collection('tasks').where('ngo_id', '==', ngoId).get()
+    ]);
+
+    const reports = reportsSnap.docs.map(d => d.data());
+    const volunteers = volunteersSnap.docs.map(d => d.data());
+    const clusters = clustersSnap.docs.map(d => d.data());
+    const tasks = tasksSnap.docs.map(d => d.data());
+
+    res.json({
+      success: true,
+      ngo_id: ngoId,
+      analytics: {
+        reports: {
+          total: reports.length,
+          by_type: {
+            water:   reports.filter(r => r.need_type === 'water').length,
+            food:    reports.filter(r => r.need_type === 'food').length,
+            medical: reports.filter(r => r.need_type === 'medical').length
+          },
+          total_affected: reports.reduce((sum, r) => sum + (r.affected_people || 0), 0)
+        },
+        volunteers: {
+          total:     volunteers.length,
+          available: volunteers.filter(v => v.available).length,
+          deployed:  volunteers.filter(v => !v.available).length
+        },
+        clusters: {
+          total:    clusters.length,
+          critical: clusters.filter(c => c.combined_urgency >= 80).length
+        },
+        tasks: {
+          total: tasks.length,
+          done:  tasks.filter(t => t.status === 'done').length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ NGO analytics error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// Update register-volunteer to tag with ngo_id
+app.post('/register-volunteer-ngo', async (req, res) => {
+  try {
+    const { name, email, skills, location, location_text, location_lat, location_lng, phone, ngo_id } = req.body;
+
+    let lat = location_lat || 0;
+    let lng = location_lng || 0;
+    let locText = location_text || location || '';
+
+    if (!lat && locText) {
+      try {
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locText)}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'PULSE-NGO-App' } }
+        );
+        const geoData = await geoRes.json();
+        if (geoData.length > 0) {
+          lat = parseFloat(geoData[0].lat);
+          lng = parseFloat(geoData[0].lon);
+        }
+      } catch { console.log('⚠️ Geocoding failed'); }
+    }
+
+    const docRef = await db.collection('volunteers').add({
+      name,
+      email:            email || '',
+      skills:           Array.isArray(skills) ? skills : [skills],
+      location_lat:     lat,
+      location_lng:     lng,
+      location_text:    locText,
+      phone:            phone || '',
+      ngo_id:           ngo_id || 'default',
+      available:        true,
+      assigned_task_id: '',
+      registered_at:    admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ Volunteer registered under NGO ${ngo_id}: ${name}`);
+    res.json({ success: true, volunteer_id: docRef.id });
+
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
   }
 });
 
