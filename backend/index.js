@@ -1,20 +1,29 @@
-const express = require('express');
-const admin = require('firebase-admin');
-const cors = require('cors');
-require('dotenv').config();
+require('dotenv').config(); // always first
 
+const express = require('express');
+const cors = require('cors');
+const admin = require('firebase-admin');
+const twilio = require('twilio'); // MUST COME BEFORE CLIENT
 const serviceAccount = require('./serviceAccountKey.json');
+
+const app = express();
+app.get('/test', (req, res) => {
+  res.send("TEST WORKING");
+});
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(cors());
+
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
 const db = admin.firestore();
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
 // ─── HELPER FUNCTIONS ───────────────────────────────────────────────
 
@@ -822,14 +831,36 @@ app.post('/sms-reply', async (req, res) => {
     res.status(500).send('Error');
   }
 });
+// START CALL
+app.post("/start-call", async (req, res) => {
+  try {
+    await client.calls.create({
+      to: process.env.MY_PHONE_NUMBER,        // 👈 YOUR PHONE HERE
+      from: process.env.TWILIO_REAL_NUMBER,  // 👈 TWILIO NUMBER
+      url: `${process.env.NGROK_URL}/incoming-call`
+     });
+//  twiml: `
+//         <Response>
+//           <Redirect>${process.env.NGROK_URL}/incoming-call</Redirect>
+//         </Response>
+//       `
+
+
+    console.log("📞 Call triggered!");
+    res.send("Call started");
+  } catch (err) {
+    console.error("❌ Twilio error:", err.message);
+    res.status(500).send("Call failed");
+  }
+});
 
 // ─── IVR ROUTES — MULTILINGUAL ──────────────────────────────────────
 
-app.post('/incoming-call', (req, res) => {
+app.all('/incoming-call', (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send(`
     <Response>
-      <Gather action="/handle-language" method="POST" numDigits="1" timeout="10">
+      <Gather action="${process.env.NGROK_URL}/handle-language" method="POST" numDigits="1" timeout="10">
         <Say language="hi-IN" voice="Polly.Aditi">
           Namaste. PULSE mein aapka swagat hai.
           Hindi ke liye 1 dabaiye.
@@ -838,13 +869,21 @@ app.post('/incoming-call', (req, res) => {
           English ke liye 4 dabaiye.
         </Say>
       </Gather>
-      <Redirect>/incoming-call</Redirect>
+      <Redirect>${process.env.NGROK_URL}/incoming-call</Redirect>
     </Response>
   `);
 });
 
-app.post('/handle-language', (req, res) => {
-  const digit = req.body.Digits;
+app.all('/handle-language', (req, res) => {
+  const digit = (req.body && req.body.Digits) || req.query.Digits;
+    console.log("Digits (language):", req.body?.Digits);
+  if (!digit) {
+    return res.send(`
+      <Response>
+        <Redirect>${process.env.NGROK_URL}/incoming-call</Redirect>
+      </Response>
+    `);
+  }
   const langMap = {
     '1': { code: 'hi-IN', name: 'Hindi' },
     '2': { code: 'te-IN', name: 'Telugu' },
@@ -863,17 +902,20 @@ app.post('/handle-language', (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send(`
     <Response>
-      <Gather action="/handle-keypress?lang=${lang.code}&langname=${lang.name}" method="POST" numDigits="1" timeout="10">
+      <Gather action="${process.env.NGROK_URL}/handle-keypress?lang=${lang.code}&amp;langname=${lang.name}" method="POST" numDigits="1" timeout="10">
         <Say language="${lang.code}">
           ${menus[lang.code]}
         </Say>
       </Gather>
+       <!-- THIS SAVES YOUR CALL FROM DYING -->
+      <Redirect>${process.env.NGROK_URL}/handle-language</Redirect>
     </Response>
   `);
 });
 
-app.post('/handle-keypress', (req, res) => {
-  const digit = req.body.Digits;
+app.all('/handle-keypress', (req, res) => {
+   console.log("Digits (menu):", req.body?.Digits);
+  const digit = (req.body && req.body.Digits) || req.query.Digits;
   const lang = req.query.lang || 'hi-IN';
   const langname = req.query.langname || 'Hindi';
   const needMap = { '1': 'water', '2': 'food', '3': 'medical' };
@@ -893,7 +935,7 @@ app.post('/handle-keypress', (req, res) => {
     <Response>
       <Say language="${lang}">${confirms[lang]}</Say>
       <Record
-        action="/handle-recording?need_type=${needType}&lang=${lang}&langname=${langname}"
+        action="${process.env.NGROK_URL}/handle-recording?need_type=${needType}&amp;lang=${lang}&amp;langname=${langname}"
         method="POST"
         maxLength="30"
         playBeep="true"
@@ -903,7 +945,7 @@ app.post('/handle-keypress', (req, res) => {
   `);
 });
 
-app.post('/handle-recording', async (req, res) => {
+app.all('/handle-recording', async (req, res) => {
   try {
     const recordingUrl = req.body.RecordingUrl;
     const callerPhone = req.body.From;
@@ -1518,7 +1560,8 @@ app.post('/register-volunteer-ngo', async (req, res) => {
 
 // ─── START SERVER ────────────────────────────────────────────────────
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
-  console.log(`🚀 PULSE backend running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

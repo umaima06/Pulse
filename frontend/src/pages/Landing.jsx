@@ -1,6 +1,17 @@
 import { Link } from 'react-router-dom'
 
 function Landing() {
+  const startCall = async () => {
+  try {
+    await fetch("http://localhost:3000/start-call", {
+      method: "POST",
+    })
+    alert("📞 Call initiated!")
+  } catch (err) {
+    console.error(err)
+    alert("Call failed ")
+  }
+}
   return (
     <div className="min-h-screen bg-gray-900 text-white">
 
@@ -28,6 +39,15 @@ function Landing() {
           and dispatches volunteers automatically — in seconds.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
+
+  <button
+    onClick={startCall}
+    className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 py-4 rounded-xl text-lg transition-all transform hover:scale-105"
+  >
+    📞 Emergency Call (IVR Simulation)
+  </button>
+
+
           <Link to="/login" className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-xl text-lg transition-all transform hover:scale-105">
             View Dashboard →
           </Link>
@@ -35,8 +55,7 @@ function Landing() {
             How it works
           </a>
         </div>
-      </div>
-
+</div>
       {/* Stats */}
       <div className="max-w-4xl mx-auto px-8 pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
