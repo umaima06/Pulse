@@ -30,8 +30,8 @@ function Landing() {
       <div className="flex items-center justify-between px-8 py-5 border-b border-gray-800">
         <h1 className="text-2xl font-bold text-orange-400">⚡ PULSE</h1>
         <div className="flex gap-4">
-          <Link to="/login" className="text-gray-300 hover:text-white text-sm px-4 py-2 transition-colors">Login</Link>
-          <Link to="/login" className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all">Get Started →</Link>
+          <Link to="/get-started" className="text-gray-300 hover:text-white text-sm px-4 py-2 transition-colors">Login</Link>
+          <Link to="/get-started" className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all">Get Started →</Link>
         </div>
       </div>
 
@@ -61,8 +61,8 @@ function Landing() {
             📞 Emergency Call (IVR Simulation)
           </button>
 
-          <Link to="/login" className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-xl text-lg transition-all transform hover:scale-105">
-            View Dashboard →
+          <Link to="/get-started" className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-xl text-lg transition-all transform hover:scale-105">
+          Get Started →
           </Link>
 
           <a href="#how" className="border border-gray-600 hover:border-orange-400 text-gray-300 hover:text-white font-medium px-8 py-4 rounded-xl text-lg transition-all">
@@ -149,8 +149,11 @@ function Landing() {
         <div className="bg-gradient-to-r from-orange-900 to-red-900 rounded-2xl p-10 text-center border border-orange-700">
           <h3 className="text-3xl font-bold mb-4">Ready to respond faster?</h3>
           <p className="text-gray-300 mb-6">Join NGOs using PULSE to save lives with AI</p>
-          <Link to="/login" className="bg-white text-gray-900 font-bold px-8 py-3 rounded-xl hover:bg-gray-100 transition-all inline-block">
-            Get Started Free →
+          <Link to="/get-started" className="bg-white text-gray-900 font-bold px-8 py-3 rounded-xl hover:bg-gray-100 transition-all inline-block">
+          Get Started Free →
+          </Link>
+          <Link to="/get-started" className="border border-gray-600 hover:border-orange-400 text-gray-300 hover:text-white font-medium px-8 py-4 rounded-xl text-lg transition-all">
+          Join as Volunteer
           </Link>
         </div>
       </div>

@@ -5,20 +5,25 @@ import { signOut } from 'firebase/auth'
 function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
+  const isVolunteerPage = location.pathname.includes('volunteer') || location.pathname.includes('my-tasks')
 
-  const links = [
-    { path: '/dashboard', label: '🗺️ Dashboard' },
-    { path: '/reports', label: '📋 Reports' },
-    { path: '/tasks', label: '✅ Tasks' },
-    { path: '/volunteers', label: '👥 Volunteers' },
-    { path: '/intake', label: '📝 Intake' },
-    { path: '/volunteer', label: '🙋 Register' },
-    { path: '/my-tasks', label: '📌 My Tasks' },
-  ]
+  const links = isVolunteerPage
+  ? [
+      { path: '/volunteer', label: '🙋 Register' },
+      { path: '/my-tasks', label: '📌 My Tasks' },
+    ]
+  : [
+      { path: '/dashboard', label: '🗺️ Dashboard' },
+      { path: '/reports', label: '📋 Reports' },
+      { path: '/tasks', label: '✅ Tasks' },
+      { path: '/volunteers', label: '👥 Volunteers' },
+      { path: '/intake', label: '📝 Intake' },
+    ]
 
   const handleLogout = async () => {
     await signOut(auth)
-    navigate('/login')
+    localStorage.removeItem("role")
+    navigate('/')
   }
 
   return (

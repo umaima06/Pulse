@@ -20,6 +20,7 @@ function Login() {
       } else {
         await signInWithEmailAndPassword(auth, form.email, form.password)
       }
+      localStorage.setItem("role", "ngo")
       navigate('/dashboard')
     } catch (err) {
       setError(err.message.replace('Firebase: ', '').replace(/\(auth.*\)/, ''))
@@ -32,6 +33,7 @@ function Login() {
     setError('')
     try {
       await signInWithPopup(auth, googleProvider)
+      localStorage.setItem("role", "ngo")
       navigate('/dashboard')
     } catch (err) {
       setError('Google sign in failed. Try again.')
@@ -106,7 +108,7 @@ function Login() {
 
       <p className="text-gray-500 text-sm mt-6">
         Are you a volunteer?{' '}
-        <Link to="/volunteer" className="text-orange-400 hover:underline">Register here instead</Link>
+        <Link to="/my-tasks" className="text-orange-400 hover:underline">Go to your tasks</Link>
       </p>
     </div>
   )
