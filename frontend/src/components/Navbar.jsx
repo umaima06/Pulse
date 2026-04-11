@@ -27,7 +27,7 @@ function Navbar() {
   }
 
   return (
-    <div className="bg-gray-800 px-6 py-4 flex items-center justify-between border-b border-gray-700">
+    <div className="bg-black/40 backdrop-blur-lg border-b border-white/10 px-6 py-4 flex items-center justify-between border-b border-gray-700">
       <Link to="/" className="text-2xl font-bold text-orange-400">⚡ PULSE</Link>
       <div className="flex gap-4 overflow-x-auto items-center">
         {links.map(link => (

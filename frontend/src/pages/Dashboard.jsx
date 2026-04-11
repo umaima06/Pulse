@@ -132,7 +132,7 @@ function Dashboard() {
       )}
 
       {/* Stats Bar */}
-      <div className="flex gap-3 px-4 md:px-6 py-3 bg-gray-800 border-b border-gray-700 overflow-x-auto items-center">
+      <div className="flex gap-3 px-4 md:px-6 py-3 bg-gray-800 border-b border-gray-700 shadow-glow overflow-x-auto items-center">
         {[
           { label: 'CRITICAL', value: clusters.filter(c => c.combined_urgency >= 80).length, bg: 'bg-red-900', text: 'text-red-300' },
           { label: 'HIGH', value: clusters.filter(c => c.combined_urgency >= 50 && c.combined_urgency < 80).length, bg: 'bg-orange-900', text: 'text-orange-300' },
@@ -148,7 +148,7 @@ function Dashboard() {
 
         {/* Demo Trigger Button */}
         <button onClick={triggerDemo} disabled={demoLoading}
-          className="ml-auto flex-shrink-0 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 text-white text-sm font-bold px-5 py-2 rounded-lg transition-all flex items-center gap-2">
+          className="ml-auto flex-shrink-0 bg-gradient-to-r from-emerald-500 to-green-400 shadow-glow disabled:bg-gray-600 text-white text-sm font-bold px-5 py-2 rounded-lg transition-all flex items-center gap-2">
           {demoLoading ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -161,27 +161,29 @@ function Dashboard() {
       {/* Map + Panels */}
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 relative">
-          <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={5}>
-            {clusters.map(cluster => (
-              cluster.centroid_lat && cluster.centroid_lon ? (
+          <div className="animate-pulse">
+            <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={5}>
+              {clusters.map(cluster => (
+                cluster.centroid_lat && cluster.centroid_lon ? (
                 <span key={cluster.id}>
                   {cluster.combined_urgency >= 80 && (
                     <Circle
                       center={{ lat: cluster.centroid_lat, lng: cluster.centroid_lon }}
                       radius={50000}
-                      options={{ strokeColor: '#ef4444', strokeOpacity: 0.15, fillColor: '#ef4444', fillOpacity: 0.06 }}
+                      options={{  strokeColor: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.2, clickable: false, }}
                     />
                   )}
                   <Circle
                     center={{ lat: cluster.centroid_lat, lng: cluster.centroid_lon }}
                     radius={15000}
-                    options={{ strokeColor: getColor(cluster.combined_urgency), fillColor: getColor(cluster.combined_urgency), fillOpacity: 0.6, cursor: 'pointer' }}
+                    options={{ strokeColor: getColor(cluster.combined_urgency), fillColor: getColor(cluster.combined_urgency), fillOpacity: 0.75, strokeWeight: 0, cursor: 'pointer' }}
                     onClick={() => setSelected(cluster)}
                   />
                 </span>
-              ) : null
-            ))}
-          </GoogleMap>
+                ) : null
+              ))}
+            </GoogleMap>
+          </div>
 
           <button onClick={() => setShowFeed(!showFeed)}
             className="absolute bottom-4 left-4 bg-gray-800 bg-opacity-90 text-white px-4 py-2 rounded-lg text-sm border border-gray-600 hover:bg-gray-700 transition-all">

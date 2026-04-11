@@ -45,7 +45,7 @@ function Login() {
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center px-4">
       <Link to="/" className="text-3xl font-black text-orange-400 mb-10">⚡ PULSE</Link>
 
-      <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md border border-gray-700">
+      <div className="bg-black/50 backdrop-blur-xl border border-white/10 shadow-glow rounded-2xl p-8 w-full max-w-md border border-gray-700">
         <h2 className="text-2xl font-bold mb-2">
           {isRegister ? 'Create NGO Account' : 'Welcome back'}
         </h2>

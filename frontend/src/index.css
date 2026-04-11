@@ -5,6 +5,26 @@
   100% { transform: scale(2.5); opacity: 0; }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease forwards;
+}
+
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
 .pulse-ring {
   animation: pulse-ring 1.5s ease-out infinite;
+}
+
+:root {
+  --pulse-emerald: #10b981;
+  --pulse-emerald-dark: #059669;
+  --pulse-red: #ef4444;
+  --pulse-bg: #0b0f14;
 }
