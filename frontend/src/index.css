@@ -6,13 +6,38 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.8s ease forwards;
+  animation: fadeIn 0.8s ease-out;
 }
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+.typing {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid #10b981;
+  width: 0;
+  animation: typing 2s steps(30, end) forwards;
+}
+
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0 }
+  40% { opacity: 1 }
+}
+
+.dot {
+  animation: blink 1.4s infinite;
+}
+
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
 
 .shadow-glow {
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
@@ -20,6 +45,24 @@
 
 .pulse-ring {
   animation: pulse-ring 1.5s ease-out infinite;
+}
+
+/* LEVEL 7 — pulse background glow */
+@keyframes pulseGlow {
+  0% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.05); }
+  100% { opacity: 0.2; transform: scale(1); }
+}
+
+.pulse-bg {
+  animation: pulseGlow 4s infinite;
+}
+
+/* LEVEL 9/10 — glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 :root {
