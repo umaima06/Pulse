@@ -13,6 +13,7 @@ PULSE/
 │   ├── .env                       ← Secret keys (not on GitHub)
 │   ├── .gitignore
 │   └── serviceAccountKey.json     ← Firebase credentials (not on GitHub)
+│   └── seed-volunteer.js
 │
 ├── ai/                            ← Person A — Python AI brain
 │   ├── app.py                     ← Flask server running on port 5000
@@ -27,8 +28,37 @@ PULSE/
 │   └── .env                       ← Groq API key (not on GitHub)
 │
 ├── frontend/                      ← Person C — React dashboard
-│   └── (in progress)
+│   └── src/
+│   │   └──components/
+│   │   │  └── Navbar.jsx
+│   │   │  └── ProtectedRoute.jsx
+│   │   │  └── Spinner.jsx
+│   │   └──pages/
+│   │   │  └── Analytics.jsx
+│   │   │  └── Dashboard.jsx
+│   │   │  └── Intake.jsx
+│   │   │  └── Landing.jsx
+│   │   │  └── Login.jsx
+│   │   │  └── notfound.jsx
+│   │   │  └── PredictiveAlerts.jsx
+│   │   │  └── Reports.jsx
+│   │   │  └── RoleSelect.jsx
+│   │   │  └── Spinner.jsx
+│   │   │  └── Tasks.jsx
+│   │   │  └── Volunteer.jsx
+│   │   │  └── VolunteerPortal.jsx
+│   │   │  └── Volunteers.jsx
+│   │   └──App.css 
+│   │   └──App.jsx
+│   │   └──firebase.js 
+│   │   └──index.css 
+│   │   └──main.jsx
+│   └──.env
+│   └──.gitignore
 │
+└── .gitignore
+└── package-lock.json
+└── package.json
 └── README.md
 ```
 # Umaima
