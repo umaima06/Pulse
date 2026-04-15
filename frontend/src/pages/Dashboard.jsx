@@ -6,8 +6,10 @@ import Navbar from '../components/Navbar'
 
 const mapContainerStyle = { width: '100%', height: '100%' }
 const center = { lat: 20.5937, lng: 78.9629 }
+console.log(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)
 
 function Dashboard() {
+  const [showDemo, setShowDemo] = useState(false)
   const [clusters, setClusters] = useState([])
   const [reports, setReports] = useState([])
   const [selected, setSelected] = useState(null)
@@ -18,10 +20,10 @@ function Dashboard() {
   const [demoLoading, setDemoLoading] = useState(false)
   const [demoSuccess, setDemoSuccess] = useState(false)
   const [alerts, setAlerts] = useState([])
-
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   })
+  const [unclusteredReports, setUnclusteredReports] = useState([])
 
   useEffect(() => {
     // Listen to clusters live
@@ -42,7 +44,7 @@ function Dashboard() {
         collection(db, 'reports'),
         where('status', '==', 'analyzed'),
         orderBy('timestamp', 'desc'),
-        limit(20)
+        // remove limit completely
       ),
       (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
@@ -51,7 +53,16 @@ function Dashboard() {
     )
 
     return () => { unsub1(); unsub2() }
-  }, [])
+  }, [showDemo])
+
+  useEffect(() => {
+    const clusteredIds = new Set(
+      clusters.flatMap(c => c.report_ids || [])
+    )
+    
+    const unclustered = reports.filter(r => !clusteredIds.has(r.id))
+    setUnclusteredReports(unclustered)
+  }, [clusters, reports])
 
   const triggerDemo = async () => {
     setDemoLoading(true)
@@ -64,6 +75,17 @@ function Dashboard() {
       alert('Demo trigger failed. Make sure backend is running on port 3000.')
     }
     setDemoLoading(false)
+  }
+
+  const clearDemo = async () => {
+    try {
+      await fetch('http://localhost:3000/clear-demo-data', {
+        method: 'DELETE'
+      })
+      alert('🧹 Demo data cleared!')
+    } catch {
+      alert('Failed to clear demo data')
+    }
   }
 
   const getColor = (urgency) => {
@@ -147,21 +169,23 @@ function Dashboard() {
         ))}
 
         {/* Demo Trigger Button */}
+        <button onClick={() => setShowDemo(!showDemo)}>
+        </button>
+        
         <button onClick={triggerDemo} disabled={demoLoading}
-          className="ml-auto flex-shrink-0 bg-gradient-to-r from-emerald-500 to-green-400 shadow-glow disabled:bg-gray-600 text-white text-sm font-bold px-5 py-2 rounded-lg transition-all flex items-center gap-2">
-          {demoLoading ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Firing...
-            </>
-          ) : '🚀 Fire Demo'}
+        className="ml-auto flex-shrink-0 bg-gradient-to-r from-emerald-500 to-green-400 text-white text-sm font-bold px-5 py-2 rounded-lg">
+          {demoLoading ? 'Firing...' : '🚀 Fire Demo'}
+        </button>
+        
+        <button onClick={clearDemo}
+        className="ml-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-5 py-2 rounded-lg">
+          🧹 Clear Demo
         </button>
       </div>
 
       {/* Map + Panels */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 relative">
-          <div className="animate-pulse">
+        <div className="flex-1 h-full">
             <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={5}>
               {clusters.map(cluster => (
                 cluster.centroid_lat && cluster.centroid_lon ? (
@@ -182,8 +206,22 @@ function Dashboard() {
                 </span>
                 ) : null
               ))}
+              {unclusteredReports.map(report => (
+                report.location_lat && report.location_lng && (
+                <Circle
+                key={report.id}
+                center={{ lat: report.location_lat, lng: report.location_lng }}
+                radius={30000}
+                options={{
+                  strokeColor: '#3b82f6',   // 🔵 BLUE = unclustered
+                  fillColor: '#3b82f6',
+                  fillOpacity: 0.6,
+                  strokeWeight: 0
+                }}
+                />
+              )
+              ))}
             </GoogleMap>
-          </div>
 
           <button onClick={() => setShowFeed(!showFeed)}
             className="absolute bottom-4 left-4 bg-gray-800 bg-opacity-90 text-white px-4 py-2 rounded-lg text-sm border border-gray-600 hover:bg-gray-700 transition-all">
@@ -213,7 +251,7 @@ function Dashboard() {
                     </span>
                   </div>
                   {report.summary && <p className="text-gray-300 text-xs leading-relaxed">{report.summary}</p>}
-                  {report.raw_message && <p className="text-gray-500 text-xs italic mt-1 truncate">"{report.raw_message}"</p>}
+                  {report.raw_text && <p className="text-gray-500 text-xs italic mt-1 truncate">"{report.raw_text}"</p>}
                 </div>
               ))}
             </div>

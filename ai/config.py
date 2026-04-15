@@ -9,7 +9,7 @@
 CRISIS_TYPES = ["medical", "food", "water"]
 
 # ── Clustering ────────────────────────────────
-CLUSTER_RADIUS_KM = 30          # Reports within this radius get grouped
+CLUSTER_RADIUS_KM = 10          # Reports within this radius get grouped
 MAX_CLUSTER_SIZE = 10           # Max reports in one cluster
 
 # ── Urgency scoring ───────────────────────────

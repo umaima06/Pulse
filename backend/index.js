@@ -111,6 +111,7 @@ async function enrichWithPULSEAI(reportId, rawText) {
       const ref = db.collection('clusters').doc(cluster.cluster_id);
       batch.set(ref, {
         ...cluster,
+        isDemo: true,
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       });
     }
@@ -141,10 +142,17 @@ fetch('http://localhost:5000/escalate', {
 
 // Check if message has enough info to skip conversation
 function isDetailedReport(text) {
-  const hasLocation = /abids|hyderabad|mumbai|delhi|chennai|kolkata|bangalore|pune|jaipur|lucknow|village|nagar|pur|bad|abad|puram/i.test(text);
+  const hasLocation = /abids|hyderabad|mumbai|delhi|chennai|kolkata|bangalore|pune|jaipur|lucknow|village|nagar|pur|abad|puram/i.test(text);
   const hasNumber = /\d+/.test(text);
   const hasNeedType = /paani|water|khaana|food|medical|bimaar|doctor|hospital|khana|pani/i.test(text);
-  return hasLocation && (hasNumber || hasNeedType);
+
+  const wordCount = text.trim().split(/\s+/).length;
+
+  // Smart detection logic
+  return (
+    (hasLocation && (hasNumber || hasNeedType)) ||   // strong signal
+    (wordCount >= 8 && hasNumber && hasNeedType)     // fallback
+  );
 }
 
 // Get or create conversation state for a sender
@@ -252,14 +260,6 @@ function getBotMessages(language) {
     }
   };
   return messages[language] || messages['Hindi'];
-}
-
-// Check if message has enough info to skip conversation
-function isDetailedReport(text) {
-  const hasNumber = /\d+/.test(text);
-  const wordCount = text.trim().split(/\s+/).length;
-  // If message has 6+ words and a number, treat as detailed report
-  return wordCount >= 6 && hasNumber;
 }
 
 async function handleBotConversation(senderNumber, incomingText) {
@@ -615,9 +615,12 @@ app.post('/assign-volunteer', async (req, res) => {
       cluster_id,
       volunteer_id,
       need_type:      cluster.need_type,
-      location_text:  cluster.need_type,
-      location_lat:   cluster.centroid_lat,
-      location_lng:   cluster.centroid_lon,
+      location_text: bestReport.location_text,
+      location_lat: bestReport.location_lat,
+      location_lng: bestReport.location_lng,
+      report_id: bestReport.id,
+      summary: bestReport.summary,
+      affected_people: bestReport.affected_people,
       volunteer_name: volunteer.name,
       status:         'assigned',
       timestamp:      admin.firestore.FieldValue.serverTimestamp()
@@ -726,9 +729,12 @@ async function autoAssignIfUrgent(clusterId) {
       cluster_id:     clusterId,
       volunteer_id:   best.volunteer_id,
       need_type:      cluster.need_type,
-      location_text:  cluster.need_type,
-      location_lat:   cluster.centroid_lat,
-      location_lng:   cluster.centroid_lon,
+      location_text: bestReport.location_text,
+      location_lat: bestReport.location_lat,
+      location_lng: bestReport.location_lng,
+      report_id: bestReport.id,
+      summary: bestReport.summary,
+      affected_people: bestReport.affected_people,
       volunteer_name: best.name,
       status:         'assigned',
       auto_assigned:  true,
@@ -759,14 +765,23 @@ async function autoAssignIfUrgent(clusterId) {
 
 // Send WhatsApp notification
 await twilio.messages.create({
-  body: `PULSE ALERT: Urgent ${cluster.need_type} crisis. ${cluster.village_count} villages affected. Urgency: ${cluster.combined_urgency}/100. Reply ACCEPT to confirm.`,
+  body: `🚨 PULSE TASK ASSIGNED
+  📍 Location: ${bestReport.location_text}
+  ⚠️ Issue: ${bestReport.need_type}
+  👥 People affected: ${bestReport.affected_people}
+  📝 Details: ${bestReport.summary || 'No extra details'}
+  Reply ACCEPT to confirm.`,
   from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
   to: `whatsapp:${best.phone}`
 });
 
 // Send SMS notification
 await twilio.messages.create({
-  body: `PULSE ALERT: Urgent ${cluster.need_type} crisis. ${cluster.village_count} villages affected. Urgency: ${cluster.combined_urgency}/100. Reply ACCEPT to confirm.`,
+  body: `PULSE TASK:
+  Location: ${bestReport.location_text}
+  Issue: ${bestReport.need_type}
+  People: ${bestReport.affected_people}
+  Reply ACCEPT.`,
   from: process.env.TWILIO_REAL_NUMBER,
   to: best.phone
 });
@@ -779,6 +794,30 @@ await twilio.messages.create({
   } catch (err) {
     console.error('❌ Auto assign failed:', err.message);
   }
+
+  // Get all reports inside this cluster
+  const reportIds = cluster.report_ids || [];
+  
+  if (reportIds.length === 0) {
+    console.log('⚠️ No reports in cluster');
+    return;
+  }
+  
+  // Pick MOST URGENT report
+  let bestReport = null;
+  
+  for (const reportId of reportIds) {
+    const doc = await db.collection('reports').doc(reportId).get();
+    if (!doc.exists) continue;
+    
+    const data = doc.data();
+    
+    if (!bestReport || data.urgency_score > bestReport.urgency_score) {
+      bestReport = { id: doc.id, ...data };
+    }
+  }
+  
+  if (!bestReport) return;
 }
 
 // Volunteer replies ACCEPT or DONE via SMS
@@ -1101,6 +1140,7 @@ async function runEscalation() {
         const ref = db.collection('clusters').doc(cluster.cluster_id);
         batch.set(ref, {
           ...cluster,
+          isDemo: true,
           updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
       }
@@ -1214,53 +1254,135 @@ app.post('/generate-report', async (req, res) => {
   }
 });
 
+// ─── RANDOM DEMO GENERATOR ─────────────────────────────
+
+const locations = [
+  { name: "Hyderabad", lat: 17.3850, lng: 78.4867 },
+  { name: "Warangal", lat: 17.9784, lng: 79.5941 },
+  { name: "Guntur", lat: 16.3067, lng: 80.4365 },
+  { name: "Vizag", lat: 17.6868, lng: 83.2185 },
+  { name: "Khammam", lat: 17.2473, lng: 80.1514 }
+];
+
+const needTypes = ["water", "food", "medical"];
+
+const getRandom = arr => arr[Math.floor(Math.random() * arr.length)];
+
+const textVariations = {
+  water: [
+    "No drinking water for {days} days in {location}, {people} people affected",
+    "Severe water shortage in {location}, {people} people suffering",
+    "Village wells dried up in {location}, need urgent water supply"
+  ],
+  food: [
+    "{people} people without food in {location} for {days} days",
+    "Food shortage reported in {location}, families starving",
+    "No ration supply in {location}, urgent food needed"
+  ],
+  medical: [
+    "Medical emergency in {location}, {people} people need help",
+    "No doctors available in {location}, urgent medical support required",
+    "Health crisis in {location}, people falling sick"
+  ]
+};
+
+function generateRandomReport() {
+  const type = getRandom(needTypes);
+  const loc = getRandom(locations);
+
+  const people = Math.floor(Math.random() * 200) + 20; // 20–220
+  const days = Math.floor(Math.random() * 5) + 1;      // 1–5 days
+  const urgency = Math.floor(Math.random() * 40) + 60; // 60–100
+
+  let template = getRandom(textVariations[type]);
+
+  const languages = ["Hindi", "English", "Telugu"];
+  const language = getRandom(languages);
+
+  const rawText = template
+    .replace("{location}", loc.name)
+    .replace("{people}", people)
+    .replace("{days}", days);
+
+  return {
+    raw_text: rawText,
+    need_type: type,
+    urgency_score: urgency,
+    affected_people: people,
+    days_unmet: days,
+    location_text: loc.name,
+    location_lat: loc.lat,
+    location_lng: loc.lng,
+    status: "analyzed",
+    source: "demo",
+    isDemo: true,
+    timestamp: admin.firestore.FieldValue.serverTimestamp()
+  };
+}
+
 // Demo trigger — fires full demo sequence automatically
 app.post('/demo-trigger', async (req, res) => {
   try {
-    console.log('🎬 Demo sequence starting...');
+    console.log('🎬 Random demo starting...');
 
-    const demoReports = [
-      { text: 'Paani nahi hai Abids mein, 3 din se, 50 log affected', sender: 'whatsapp:+919000000001' },
-      { text: 'Medical emergency in Tolichowki, bujurg aadmi behosh hai, doctor chahiye', sender: 'whatsapp:+919000000002' },
-      { text: 'Khaane ki kami hai Mehdipatnam area mein, 30 families hain', sender: 'whatsapp:+919000000003' }
-    ];
+    const demoReports = Array.from({ length: 5 }, () => generateRandomReport());
 
     const savedIds = [];
 
     for (const report of demoReports) {
-      const docRef = await db.collection('reports').add({
-        raw_text:      report.text,
-        sender:        report.sender,
-        need_type:     '',
-        urgency_score: 0,
-        location_text: '',
-        location_lat:  0,
-        location_lng:  0,
-        language:      '',
-        summary:       '',
-        status:        'new',
-        source:        'demo',
-        timestamp:     admin.firestore.FieldValue.serverTimestamp()
-      });
+      const docRef = await db.collection('reports').add(report);
       savedIds.push(docRef.id);
-      console.log(`🎬 Demo report saved: ${docRef.id}`);
 
-      // Enrich each report
-      enrichWithPULSEAI(docRef.id, report.text).catch(console.error);
+      console.log(`🎬 Random report: ${report.raw_text}`);
 
-      // Small delay between reports
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 🔥 IMPORTANT: still run AI pipeline
+      enrichWithPULSEAI(docRef.id, report.raw_text).catch(console.error);
+
+      await new Promise(r => setTimeout(r, 1000)); // small delay
     }
 
     res.json({
       success: true,
-      message: 'Demo sequence fired',
+      message: 'Random demo generated',
       report_ids: savedIds
     });
 
   } catch (error) {
-    console.error('❌ Demo trigger error:', error);
-    res.status(500).json({ error: 'Demo trigger failed' });
+    console.error('❌ Demo error:', error);
+    res.status(500).json({ error: 'Demo failed' });
+  }
+});
+
+app.delete('/clear-demo-data', async (req, res) => {
+  try {
+    // Delete demo reports
+    const reportsSnap = await db.collection('reports')
+      .where('isDemo', '==', true)
+      .get();
+
+    const batch = db.batch();
+
+    reportsSnap.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+
+    // Delete demo clusters
+    const clustersSnap = await db.collection('clusters')
+      .where('isDemo', '==', true)
+      .get();
+
+    clustersSnap.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+
+    console.log('🧹 Demo data cleared');
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to clear demo data' });
   }
 });
 
