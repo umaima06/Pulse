@@ -1680,6 +1680,132 @@ app.post('/register-volunteer-ngo', async (req, res) => {
   }
 });
 
+app.post('/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    const text = message.toLowerCase();
+
+    // 🔥 Get number from ENV (NO HARDCODE)
+    const phone = process.env.TWILIO_PHONE_NUMBER;
+    const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+
+    // Convert to WhatsApp link format (remove +)
+    const whatsappLink = `https://wa.me/${phone.replace('+', '')}`;
+
+    // ─── 1. QUICK INTENT DETECTION ─────────────────────
+
+    const isReport =
+  /water|food|medical|problem|emergency|paani|khana|bimaar/i.test(text);
+
+    const isAnalytics =
+      /how many|stats|analytics|people helped|reports today/i.test(text);
+
+    const isAlerts =
+      /urgent|crisis|alert|danger/i.test(text);
+
+    const isInfo =
+      /what is pulse|what does pulse|how does this work/i.test(text);
+
+    // ─── 2. REPORT MODE 🚨 ─────────────────────────────
+
+    if (isReport) {
+      return res.json({
+        type: "report",
+        reply: `🚨 I understand this is a serious issue.
+
+Please report it properly so we can act fast:
+
+👉 Use WhatsApp  
+👉 Or use quick form below`,
+
+        actions: [
+         { 
+  label: "Open Intake Form", 
+  link: `${baseUrl}/intake?msg=${encodeURIComponent(message)}`
+},
+          { label: "WhatsApp Report", link: whatsappLink }
+        ]
+      });
+    }
+
+    // ─── 3. ANALYTICS MODE 📊 ─────────────────────────
+
+if (isAnalytics) {
+  const analyticsRes = await fetch(`${baseUrl}/analytics`);
+  const data = await analyticsRes.json();
+
+  const affected = data.analytics?.reports?.total_affected || 0;
+  const reports = data.analytics?.reports?.total || 0;
+  const volunteers = data.analytics?.volunteers?.available || 0;
+
+  return res.json({
+reply: `📊 Today’s Impact:
+
+We’ve helped ${affected} people across ${reports} reports 🙌
+
+Volunteers Active: ${volunteers}`
+  });
+}
+
+    // ─── 4. ALERT MODE ⚠️ ─────────────────────────────
+
+    if (isAlerts) {
+      const alertRes = await fetch(`${baseUrl}/predictive-alerts`);
+      const data = await alertRes.json();
+
+      if (!data.alerts || data.alerts.length === 0) {
+        return res.json({ reply: "✅ No major crises predicted right now." });
+      }
+
+      const top = data.alerts[0];
+
+      return res.json({
+        reply: `⚠️ Alert:
+
+${top.region} may face ${top.need_type} crisis in ${top.predicted_month}.
+Confidence: ${top.confidence}`
+      });
+    }
+
+    // ─── 5. INFO MODE 🧠 ─────────────────────────────
+
+    if (isInfo) {
+      return res.json({
+        reply: `PULSE is an AI-powered disaster response system.
+
+We:
+• Detect emergencies using AI
+• Cluster crisis zones
+• Assign nearest volunteers
+• Predict future disasters
+
+Basically… we turn chaos into coordinated action.`
+      });
+    }
+
+   // ─── 6. AI MODE 🤖 ─────────────────────────────
+
+const aiRes = await fetch(`${process.env.AI_BASE_URL}/ask-ai`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ message })
+});
+
+const aiData = await aiRes.json();
+
+return res.json({
+  reply: aiData.reply
+});
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ reply: "Server error" });
+  }
+});
+
 // ─── START SERVER ────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;

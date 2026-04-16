@@ -1,5 +1,7 @@
 # app.py — PULSE X AI Service
 # This is the bridge between your Python brain and Person B's Node.js backend
+from dotenv import load_dotenv
+load_dotenv()
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from intelligence import analyze_report, escalate_urgency, get_alert_level
@@ -7,6 +9,7 @@ from clustering import cluster_reports
 from matching import match_volunteers
 from report_generator import generate_cluster_report, generate_pre_alert
 import os
+import requests
 app = Flask(__name__)
 CORS(app)  # Allows Node.js backend to call this
 
@@ -144,18 +147,77 @@ def escalate():
         "reports": updated
     }), 200
 
+@app.route('/ask-ai', methods=['POST'])
+def ask_ai():
+    data = request.get_json()
+    message = data.get("message", "")
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    print(f"PULSE X AI Service running on port {port}")
-    print("Endpoints ready:")
-    print("  GET  /health")
-    print("  POST /analyze")
-    print("  POST /cluster")
-    print("  POST /match")
-    print("  POST /escalate")
-    app.run(host='0.0.0.0', port=port, debug=True)
-    
+    if not message:
+        return jsonify({"reply": "No message provided"}), 400
+
+    try:
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {
+                        "role": "system",
+"content": """You are PULSE AI, a real-time disaster response system.
+
+IMPORTANT: Only describe THIS system. Do NOT give generic NGO explanations.
+
+PULSE works like this:
+
+1. Users report problems (chat / WhatsApp / form)
+2. AI analyzes the message using NLP
+3. System assigns urgency score
+4. Nearby reports are clustered into crisis zones
+5. Volunteers are matched based on distance + skills
+6. System predicts future crises using patterns
+7. Dashboard shows real-time analytics
+
+Your behavior:
+- Be clear and slightly conversational
+- Keep answers practical, not theoretical
+- If user asks general chat → reply normally
+- If user asks about PULSE → explain using above flow ONLY
+- Do NOT invent fake features like emails or manual assignment
+
+Keep answers short but smart.
+"""
+                    },
+                    {
+                        "role": "user",
+                        "content": message
+                    }
+                ]
+            }
+        )
+
+        result = response.json()
+
+        # 🧠 safety check
+        if "choices" not in result:
+            print("Groq error:", result)
+            return jsonify({
+                "reply": "⚠️ AI temporarily unavailable."
+            }), 500
+
+        reply = result["choices"][0]["message"]["content"]
+
+        return jsonify({ "reply": reply })
+
+    except Exception as e:
+        print("AI ERROR:", e)
+        return jsonify({
+            "reply": "⚠️ AI service error."
+        }), 500
+
 @app.route('/generate-report', methods=['POST'])
 def generate_report():
     """
@@ -191,3 +253,15 @@ def pre_alert():
         historical_pattern=body.get('historical_pattern', 'Historical shortage patterns detected')
     )
     return jsonify(result), 200 if result['success'] else 500
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    print(f"PULSE X AI Service running on port {port}")
+    print("Endpoints ready:")
+    print("  GET  /health")
+    print("  POST /analyze")
+    print("  POST /cluster")
+    print("  POST /match")
+    print("  POST /escalate")
+    app.run(host='0.0.0.0', port=port, debug=True)
+    

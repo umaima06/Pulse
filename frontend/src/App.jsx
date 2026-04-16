@@ -14,6 +14,7 @@ import PredictiveAlerts from './pages/PredictiveAlerts'
 import Analytics from './pages/Analytics'
 import ProtectedRoute from './components/ProtectedRoute'
 import RoleSelect from './pages/RoleSelect'
+import Chatbot from "./components/Chatbot"
 
 function App() {
   return (
@@ -32,8 +33,10 @@ function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="*" element={<NotFound />} />
         <Route path="/get-started" element={<RoleSelect />} />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+        <Chatbot />
+
+      </BrowserRouter>
   )
 }
 

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
@@ -10,7 +11,7 @@ function Intake() {
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
-
+  const locationHook = useLocation()
   const needTypes = ['medical', 'food', 'water']
 
   const handleSubmit = async () => {
@@ -84,7 +85,28 @@ function Intake() {
 
     setLoading(false)
   }
+useEffect(() => {
+  const params = new URLSearchParams(locationHook.search)
+  const msg = params.get("msg")
 
+  if (msg) {
+    let detectedType = ""
+
+    if (msg.toLowerCase().includes("water") || msg.includes("paani")) {
+      detectedType = "water"
+    } else if (msg.toLowerCase().includes("food") || msg.includes("khana")) {
+      detectedType = "food"
+    } else if (msg.toLowerCase().includes("medical") || msg.includes("bimaar")) {
+      detectedType = "medical"
+    }
+
+    setForm(prev => ({
+      ...prev,
+      message: msg,
+      need_type: detectedType
+    }))
+  }
+}, [])
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Navbar />
