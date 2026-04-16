@@ -1,3 +1,6 @@
 .env
 venv/
 _pycache_/minikube.exe
+node_modules/
+dist/
+build/
