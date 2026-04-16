@@ -280,6 +280,11 @@ python seed_data.py reset   # fresh start
 - Predictive alerts API integration
 - Analytics dashboard API
 - Frontend-triggered IVR simulation endpoint
+- AI-powered Chatbot interface for real-time user interaction and guidance
+- Intent-based chatbot system supporting reporting, analytics, and system explanation
+- Quick action UI for faster access to key features (Report / About / Stats)
+- Chatbot-to-frontend navigation system (intake form routing + message prefill)
+- Unified frontend-backend chat integration with structured responses
 
 ---
 
@@ -416,7 +421,148 @@ python seed_data.py reset   # fresh start
     - Total reports, volunteers, tasks
     - Crisis type breakdown
     - Cluster severity distribution
-      
+
+---
+## Day 5 — Intelligent Chatbot + Frontend UX Layer 
+
+Built a fully interactive chatbot assistant (**PULSE AI Frontend Interface**) to improve real-time user interaction, reporting, and system navigation.
+
+---
+
+## Chatbot System (Frontend)
+
+Developed a floating chatbot UI using React with:
+
+- Framer Motion animations for smooth open/close transitions  
+- Lucide React icon integration (`MessageCircle` icon)  
+- Persistent chat state using React hooks  
+- Auto-scroll to latest messages  
+- Loading state simulation (“⚡ Thinking...”)  
+- Action-based message rendering (buttons inside bot responses)  
+
+---
+
+## Quick Action Buttons
+
+Added predefined quick actions for faster interaction:
+
+- 🚨 Report Problem  
+- 🤖 About PULSE  
+- 📊 View Stats  
+
+These allow users to trigger common queries without typing manually.
+
+UI improvements:
+
+- Full-width styled buttons  
+- Color-coded actions (red / green / blue)  
+- Better spacing + hover feedback  
+
+---
+
+## 🔗 Routing + Navigation Fix
+
+Connected chatbot action buttons to React Router using `useNavigate()`.
+
+Fixed internal vs external link handling:
+
+- `/intake` → internal navigation  
+- WhatsApp → external link handling  
+
+Enabled query param based routing:
+
+- `/intake?msg=...` → prefilled reports  
+
+---
+
+## Backend Integration
+
+Chatbot communicates with backend via:
+
+```http
+POST /chat
+```
+## Backend Handling
+
+Handles:
+
+- User message classification  
+- Intent detection  
+- AI fallback response (Groq / LLM)  
+- Structured response with optional `actions[]`  
+
+---
+
+## Smart Intent Handling (Backend)
+
+### Report Mode
+
+Detects emergency keywords (water, food, help, etc.)
+
+Redirects user to:
+
+- Intake form  
+- WhatsApp reporting  
+
+---
+
+### Analytics Mode (FIXED)
+
+Fetches live system stats from `/analytics`
+
+**FIXED:** removed hardcoded values  
+
+Now dynamically uses Firestore-backed data:
+
+- People helped (derived from `total_affected`)  
+- Total reports  
+- Volunteers active  
+
+---
+
+### Alert Mode
+
+Fetches predictive crisis alerts from `/predictive-alerts`
+
+Returns:
+
+- Top risk region  
+- Confidence score  
+
+---
+
+### Info Mode
+
+Explains how PULSE system works in simple terms  
+
+---
+
+### AI Fallback Mode
+
+Groq LLM-based response for general queries when no intent is matched
+
+---
+
+## Intake System Upgrade
+
+Intake page now supports prefilled chatbot messages:
+
+Uses:
+
+- `useLocation()` to read query params  
+- Auto-fills message field  
+
+AI pipeline remains powered via Flask `/analyze`
+
+Firestore stores enriched reports:
+
+- Urgency score  
+- Affected people  
+- Location parsing  
+- Language detection  
+- AI summary
+  
+---
 ### How The Full Pipeline Works
 ```
 Field Worker intake — four methods:
