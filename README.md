@@ -274,6 +274,12 @@ python seed_data.py reset   # fresh start
 - Analytics endpoint
 - AI report generation proxy
 - Demo trigger for live demonstrations
+- Multilingual conversational bot (6 Indian languages)
+- Smart message classification (direct vs guided intake)
+- Multilingual IVR system with language selection
+- Predictive alerts API integration
+- Analytics dashboard API
+- Frontend-triggered IVR simulation endpoint
 
 ---
 
@@ -370,7 +376,47 @@ python seed_data.py reset   # fresh start
   - Each NGO only sees their own data
   - NGO ID passed via `x-ngo-id` header or request body
   - `/register-volunteer-ngo` tags volunteers to specific NGO
-    
+
+---
+### Day 4 — Multilingual + Advanced Intake + IVR Upgrade
+
+- Upgraded WhatsApp conversational bot to support **6 languages**:
+  Hindi, English, Telugu, Tamil, Marathi, Bengali
+- Added automatic **language detection using AI**
+- Bot dynamically switches language per user conversation
+- Introduced **smart fallback logic**:
+  - If message is detailed → skip bot → direct AI processing
+  - If vague → guided conversation starts
+
+- Improved conversation UX:
+  - Fully localized prompts and confirmations
+  - Language stored per user in `/conversations`
+
+- Built **multilingual IVR system**:
+  - Caller selects preferred language (Hindi, Telugu, Tamil, English)
+  - Menu adapts to selected language
+  - Voice prompts dynamically generated per language
+  - Recording stored with language metadata
+
+- Enhanced IVR reliability:
+  - Switched to `app.all()` for Twilio compatibility
+  - Added ngrok-based routing for live testing
+  - Built `/start-call` endpoint to trigger IVR from frontend (demo mode)
+
+- Improved AI enrichment pipeline:
+  - Reports now tagged with detected language
+  - Better context passed to AI for analysis
+
+- Added **Predictive Alerts API integration**:
+  - `/predictive-alerts` endpoint feeds frontend predictions page
+  - Alerts generated using historical crisis patterns
+
+- Built **Analytics API**:
+  - `/analytics` endpoint provides:
+    - Total reports, volunteers, tasks
+    - Crisis type breakdown
+    - Cluster severity distribution
+      
 ### How The Full Pipeline Works
 ```
 Field Worker intake — four methods:
