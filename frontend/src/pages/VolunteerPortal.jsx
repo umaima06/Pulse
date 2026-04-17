@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
+import { doc, updateDoc } from 'firebase/firestore'
 
 function VolunteerPortal() {
   const [phone, setPhone] = useState('')
@@ -25,19 +26,37 @@ function VolunteerPortal() {
     )
   }
 
-  const updateTask = async (taskId, status) => {
-    setActionLoading(taskId + status)
-    try {
-      await fetch('http://localhost:3000/update-task', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task_id: taskId, status })
+const updateTask = async (taskId, status) => {
+  setActionLoading(taskId + status)
+
+  try {
+    await fetch('http://localhost:3000/update-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: taskId, status })
+    })
+
+    // 💥 AUTO AVAILABILITY LOGIC
+    if (status === 'accepted') {
+      await updateDoc(doc(db, 'volunteers', phone), {
+        available: false
       })
-    } catch {
-      alert('Could not update task. Make sure backend is running.')
+      setAvailable(false)
     }
-    setActionLoading('')
+
+    if (status === 'done') {
+      await updateDoc(doc(db, 'volunteers', phone), {
+        available: true
+      })
+      setAvailable(true)
+    }
+
+  } catch {
+    alert('Could not update task. Make sure backend is running.')
   }
+
+  setActionLoading('')
+}
 
   const getStatusStyle = (status) => {
     if (status === 'accepted') return 'bg-blue-700 text-blue-200'
@@ -51,6 +70,18 @@ function VolunteerPortal() {
     return 'text-yellow-400'
   }
 
+const toggleAvailability = async () => {
+  const newStatus = !available
+  setAvailable(newStatus)
+
+  try {
+    await updateDoc(doc(db, 'volunteers', phone), {
+      available: newStatus
+    })
+  } catch {
+    alert("Failed to update availability")
+  }
+}
   const doneTasks = tasks.filter(t => t.status === 'done')
   const activeTasks = tasks.filter(t => t.status !== 'done')
 
@@ -89,7 +120,7 @@ function VolunteerPortal() {
               <div className="flex items-center gap-3 bg-gray-800 px-4 py-2 rounded-xl border border-gray-700">
                 <span className="text-gray-300 text-sm">Available</span>
                 <button
-                  onClick={() => setAvailable(!available)}
+                  onClick={toggleAvailability}
                   className={"w-12 h-6 rounded-full transition-all relative " + (available ? 'bg-green-500' : 'bg-gray-600')}>
                   <div className={"w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all " + (available ? 'left-6' : 'left-0.5')}></div>
                 </button>
