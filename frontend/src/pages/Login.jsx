@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { auth, googleProvider } from '../firebase'
+import { auth, googleProvider, db } from '../firebase'  // ✅ db import karo
 import { signInWithEmailAndPassword, signInWithPopup, createUserWithEmailAndPassword } from 'firebase/auth'
+import { doc, setDoc } from 'firebase/firestore'  // ✅ Firestore functions import
 
 function Login() {
-  const [form, setForm] = useState({ email: '', password: '' })
+  const [form, setForm] = useState({ email: '', password: '', organization: '' })
   const [isRegister, setIsRegister] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -12,15 +13,24 @@ function Login() {
 
   const handleEmailAuth = async () => {
     if (!form.email || !form.password) { setError('Please fill all fields'); return }
+    if (isRegister && !form.organization) { setError('Please enter your organization name'); return }
     setLoading(true)
     setError('')
     try {
       if (isRegister) {
-        await createUserWithEmailAndPassword(auth, form.email, form.password)
+        // ✅ User create karo
+        const cred = await createUserWithEmailAndPassword(auth, form.email, form.password)
+        
+        // ✅ Firestore mein NGO document save karo
+        await setDoc(doc(db, 'ngos', form.email), {
+          email: form.email,
+          organization: form.organization,
+          role: 'ngo',
+          createdAt: new Date().toISOString()
+        })
       } else {
         await signInWithEmailAndPassword(auth, form.email, form.password)
       }
-      localStorage.setItem("role", "ngo")
       navigate('/dashboard')
     } catch (err) {
       setError(err.message.replace('Firebase: ', '').replace(/\(auth.*\)/, ''))
@@ -33,9 +43,8 @@ function Login() {
     setError('')
     try {
       await signInWithPopup(auth, googleProvider)
-      localStorage.setItem("role", "ngo")
       navigate('/dashboard')
-    } catch (err) {
+    } catch {
       setError('Google sign in failed. Try again.')
     }
     setLoading(false)
@@ -45,7 +54,7 @@ function Login() {
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center px-4">
       <Link to="/" className="text-3xl font-black text-orange-400 mb-10">⚡ PULSE</Link>
 
-      <div className="bg-black/50 backdrop-blur-xl border border-white/10 shadow-glow rounded-2xl p-8 w-full max-w-md border border-gray-700">
+      <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-md border border-gray-700">
         <h2 className="text-2xl font-bold mb-2">
           {isRegister ? 'Create NGO Account' : 'Welcome back'}
         </h2>
@@ -78,6 +87,15 @@ function Login() {
         </div>
 
         <div className="space-y-4">
+          {isRegister && (
+            <div>
+              <label className="text-gray-300 text-sm mb-1 block">Organization Name *</label>
+              <input type="text" value={form.organization}
+                onChange={e => setForm({...form, organization: e.target.value})}
+                placeholder="Red Cross India, Helping Hands NGO..."
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-400" />
+            </div>
+          )}
           <div>
             <label className="text-gray-300 text-sm mb-1 block">Email</label>
             <input type="email" value={form.email}
@@ -93,7 +111,6 @@ function Login() {
               placeholder="••••••••"
               className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-400" />
           </div>
-
           <button onClick={handleEmailAuth} disabled={loading}
             className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 text-white font-bold py-3 rounded-lg transition-all text-lg">
             {loading ? 'Please wait...' : isRegister ? 'Create Account →' : 'Sign In →'}
@@ -108,7 +125,7 @@ function Login() {
 
       <p className="text-gray-500 text-sm mt-6">
         Are you a volunteer?{' '}
-        <Link to="/my-tasks" className="text-orange-400 hover:underline">Go to your tasks</Link>
+        <Link to="/volunteer" className="text-orange-400 hover:underline">Register here instead</Link>
       </p>
     </div>
   )
