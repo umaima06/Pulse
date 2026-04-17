@@ -285,6 +285,10 @@ python seed_data.py reset   # fresh start
 - Quick action UI for faster access to key features (Report / About / Stats)
 - Chatbot-to-frontend navigation system (intake form routing + message prefill)
 - Unified frontend-backend chat integration with structured responses
+- Real-time cluster action system with WhatsApp-based volunteer coordination (assign, reassign, force-assign, resolve workflow)
+- Live cluster status tracking using Firestore onSnapshot (instant UI updates without refresh)
+- Response tracking system for volunteers (assigned → accepted → resolved lifecycle monitoring)
+- Time-based urgency intelligence layer including response delay tracking and “days unmet” crisis duration metric
 
 ---
 
@@ -562,6 +566,64 @@ Firestore stores enriched reports:
 - Language detection  
 - AI summary
   
+---
+## Day 6 — Cluster Action System + Real-time Assignment Tracking 
+
+Built a complete cluster action management system for NGO dashboard control.
+
+### Cluster Lifecycle Workflow
+Added full workflow support for cluster actions:
+- 🔄 Reassign cluster to a different volunteer  
+- ⚡ Force-assign cluster for high urgency cases  
+- ✅ Mark cluster as resolved with resolution note stored in backend  
+
+### Real-time Notifications
+
+- Integrated Twilio WhatsApp notification system for all assignment actions  
+- Volunteers receive instant WhatsApp updates on assignment changes  
+- Ensures real-time field coordination between NGO and volunteers  
+
+### Live Status Tracking
+- Implemented real-time cluster status tracking using Firestore sync  
+- UI updates instantly via `onSnapshot` listeners  
+- No manual refresh required  
+
+### Status Flow Management
+- Properly mapped workflow:  
+  `Assigned → Accepted → Done → Resolved`  
+- Fixed inconsistencies in status rendering across dashboard panels  
+
+### Volunteer Response Tracking
+- Tracks assignment timestamp (`assigned_at`)  
+- Tracks acceptance and completion events  
+- Displays real-time status transitions in UI 
+- Includes “days unmet” metric to track unresolved duration since report creation 
+
+### Delay & Urgency Indicators
+- Shows:
+  - Recently assigned  
+  - Awaiting response  
+  - No response states 
+- Color-coded urgency urgency-based response tracking (green/yellow/red)
+
+### Cluster Visualization Improvements
+- High urgency clusters show expanded radius overlay  
+- Medium/low urgency clusters dynamically styled  
+- Unclustered reports displayed separately for clarity  
+
+### UI/UX Enhancements
+- Live Feed reflects real-time Firestore updates  
+- Cluster Detail Panel now shows:
+  - Assignment status  
+  - Response timing  
+  - Volunteer identity  
+  - Resolution state  
+
+### Bug Fixes
+- Fixed mismatched `assigned_at` and status conditions  
+- Corrected incorrect assignment state display in UI  
+- Prevented stale cluster status rendering
+
 ---
 ### How The Full Pipeline Works
 ```
