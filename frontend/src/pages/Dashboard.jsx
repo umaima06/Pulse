@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react'
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api'
-import { collection, onSnapshot, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
+import { collection, onSnapshot, getDocs, query, where, orderBy, doc } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
-import { doc } from 'firebase/firestore'
 
 const mapContainerStyle = { width: '100%', height: '100%' }
 const center = { lat: 20.5937, lng: 78.9629 }
-
 const API_BASE = 'http://localhost:3000'
 
 // ─── Urgency helpers ──────────────────────────────────────────────────────────
@@ -19,11 +17,11 @@ const getColor = (urgency) => {
 
 const getLabel = (urgency) => {
   if (urgency >= 80) return { text: 'CRITICAL', bg: 'bg-red-600' }
-  if (urgency >= 50) return { text: 'HIGH',     bg: 'bg-orange-500' }
-  return                   { text: 'MEDIUM',    bg: 'bg-yellow-500' }
+  if (urgency >= 50) return { text: 'HIGH', bg: 'bg-orange-500' }
+  return { text: 'MEDIUM', bg: 'bg-yellow-500' }
 }
 
-// ─── Icon factories (your version) ───────────────────────────────────────────
+// ─── Icon factories ───────────────────────────────────────────────────────────
 const clusterIcon = (urgency, reportCount) => {
   if (!window.google) return null
   return {
@@ -48,7 +46,7 @@ const unclusteredIcon = () => {
   }
 }
 
-// ─── Friend's action functions ────────────────────────────────────────────────
+// ─── Action functions ─────────────────────────────────────────────────────────
 const reassignCluster = async (id) => {
   try {
     const res = await fetch(`${API_BASE}/reassign`, {
@@ -102,7 +100,7 @@ const resolveCluster = async (id) => {
   }
 }
 
-// ─── Time helpers (friend's version) ─────────────────────────────────────────
+// ─── Time helpers ─────────────────────────────────────────────────────────────
 const parseTime = (timestamp) => {
   if (!timestamp) return null
   if (typeof timestamp.toDate === 'function') return timestamp.toDate()
@@ -140,20 +138,19 @@ const getDaysUnmet = (created_at) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function Dashboard() {
-  const [clusters,           setClusters]           = useState([])
-  const [reports,            setReports]            = useState([])
+  const [clusters, setClusters] = useState([])
+  const [reports, setReports] = useState([])
   const [unclusteredReports, setUnclusteredReports] = useState([])
-  const [selected,           setSelected]           = useState(null)
-  const [hoveredReport,      setHoveredReport]      = useState(null)  // your version
-  const [showFeed,           setShowFeed]           = useState(true)
-  const [reportText,         setReportText]         = useState('')
-  const [showReportModal,    setShowReportModal]    = useState(false)
-  const [reportLoading,      setReportLoading]      = useState(false)
-  const [demoLoading,        setDemoLoading]        = useState(false)
-  const [demoSuccess,        setDemoSuccess]        = useState(false)
-  const [alerts,             setAlerts]             = useState([])
-  const [showDemo,           setShowDemo]           = useState(false)  // friend's version
-  const [,                   forceUpdate]           = useState(0)      // friend's version
+  const [selected, setSelected] = useState(null)
+  const [hoveredReport, setHoveredReport] = useState(null)
+  const [showFeed, setShowFeed] = useState(true)
+  const [reportText, setReportText] = useState('')
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [reportLoading, setReportLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoSuccess, setDemoSuccess] = useState(false)
+  const [alerts, setAlerts] = useState([])
+  const [, forceUpdate] = useState(0)
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -175,9 +172,9 @@ function Dashboard() {
     )
 
     return () => { unsub1(); unsub2() }
-  }, [showDemo])
+  }, [])
 
-  // ── Live listener on selected cluster (friend's version) ──────────────────
+  // ── Live listener on selected cluster ─────────────────────────────────────
   useEffect(() => {
     if (!selected?.id) return
     const unsub = onSnapshot(doc(db, 'clusters', selected.id), (d) => {
@@ -190,11 +187,10 @@ function Dashboard() {
   useEffect(() => {
     const clusteredIds = new Set(clusters.flatMap(c => c.report_ids || []))
     const unclustered = reports.filter(r => !clusteredIds.has(r.id))
-    if (unclustered.length > 0) console.log('[DEBUG] unclustered sample:', unclustered[0])
     setUnclusteredReports(unclustered)
   }, [clusters, reports])
 
-  // ── Force re-render every 1 min for time-ago displays (friend's version) ──
+  // ── Force re-render every 1 min for time-ago displays ─────────────────────
   useEffect(() => {
     const interval = setInterval(() => forceUpdate(prev => prev + 1), 60000)
     return () => clearInterval(interval)
@@ -284,11 +280,11 @@ function Dashboard() {
       {/* Stats bar */}
       <div className="flex gap-3 px-4 md:px-6 py-3 bg-gray-800 border-b border-gray-700 overflow-x-auto items-center">
         {[
-          { label: 'CRITICAL', value: clusters.filter(c => c.combined_urgency >= 80).length,                            bg: 'bg-red-900',    text: 'text-red-300' },
-          { label: 'HIGH',     value: clusters.filter(c => c.combined_urgency >= 50 && c.combined_urgency < 80).length, bg: 'bg-orange-900', text: 'text-orange-300' },
-          { label: 'MEDIUM',   value: clusters.filter(c => c.combined_urgency < 50).length,                             bg: 'bg-yellow-900', text: 'text-yellow-300' },
-          { label: 'CLUSTERS', value: clusters.length,                                                                  bg: 'bg-gray-700',   text: 'text-gray-300' },
-          { label: 'REPORTS',  value: reports.length,                                                                   bg: 'bg-blue-900',   text: 'text-blue-300' },
+          { label: 'CRITICAL', value: clusters.filter(c => c.combined_urgency >= 80).length, bg: 'bg-red-900', text: 'text-red-300' },
+          { label: 'HIGH', value: clusters.filter(c => c.combined_urgency >= 50 && c.combined_urgency < 80).length, bg: 'bg-orange-900', text: 'text-orange-300' },
+          { label: 'MEDIUM', value: clusters.filter(c => c.combined_urgency < 50).length, bg: 'bg-yellow-900', text: 'text-yellow-300' },
+          { label: 'CLUSTERS', value: clusters.length, bg: 'bg-gray-700', text: 'text-gray-300' },
+          { label: 'REPORTS', value: reports.length, bg: 'bg-blue-900', text: 'text-blue-300' },
         ].map(stat => (
           <div key={stat.label} className={`px-4 py-2 rounded-lg flex-shrink-0 ${stat.bg}`}>
             <p className={`text-xs ${stat.text}`}>{stat.label}</p>
@@ -317,7 +313,7 @@ function Dashboard() {
         <div className="relative flex-1 h-full">
           <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={5}>
 
-            {/* 🔵 Unclustered report dots (your version — Marker + InfoWindow) */}
+            {/* 🔵 Unclustered report dots */}
             {unclusteredReports.map(report => {
               const lat = report.location_lat ?? report.lat ?? report.latitude
               const lng = report.location_lng ?? report.lng ?? report.longitude
@@ -369,7 +365,7 @@ function Dashboard() {
               )
             })()}
 
-            {/* 🔴/🟠/🟡 Cluster markers (your version — Marker with pixel scale) */}
+            {/* 🔴/🟠/🟡 Cluster markers */}
             {clusters.map(cluster => (
               <Marker
                 key={cluster.id}
@@ -392,7 +388,7 @@ function Dashboard() {
 
           </GoogleMap>
 
-          {/* Legend (your version) */}
+          {/* Legend */}
           <div className="absolute bottom-14 left-4 bg-gray-900 bg-opacity-90 text-white px-3 py-2 rounded-lg text-xs border border-gray-600 space-y-1">
             <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /><span>Critical cluster</span></div>
             <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-500 inline-block" /><span>High cluster</span></div>
@@ -430,7 +426,7 @@ function Dashboard() {
                       {report.urgency_score ?? '?'}
                     </span>
                   </div>
-                  {report.summary  && <p className="text-gray-300 text-xs leading-relaxed">{report.summary}</p>}
+                  {report.summary && <p className="text-gray-300 text-xs leading-relaxed">{report.summary}</p>}
                   {report.raw_text && <p className="text-gray-500 text-xs italic mt-1 truncate">"{report.raw_text}"</p>}
                 </div>
               ))}
@@ -438,7 +434,7 @@ function Dashboard() {
           </div>
         )}
 
-        {/* ── CLUSTER DETAIL panel (merged: your layout + friend's extra sections) ── */}
+        {/* ── CLUSTER DETAIL panel ── */}
         {selected && (
           <div className="w-72 md:w-80 bg-gray-800 overflow-y-auto border-l border-gray-700">
             <div className="p-5">
@@ -458,9 +454,9 @@ function Dashboard() {
 
               <div className="space-y-3">
                 {[
-                  { label: 'NEED TYPE',          value: selected.need_type || 'Unknown' },
+                  { label: 'NEED TYPE', value: selected.need_type || 'Unknown' },
                   { label: 'REPORTS IN CLUSTER', value: selected.report_count || 1 },
-                  { label: 'VILLAGES AFFECTED',  value: selected.village_count || 1 },
+                  { label: 'VILLAGES AFFECTED', value: selected.village_count || 1 },
                   {
                     label: 'PEOPLE AFFECTED',
                     value: selected.total_affected != null
@@ -478,7 +474,7 @@ function Dashboard() {
                   </div>
                 ))}
 
-                {/* ⏱ Response tracking (friend's version) */}
+                {/* ⏱ Response tracking */}
                 <div className="bg-gray-700 rounded-lg p-3">
                   <p className="text-gray-400 text-xs">⏱ REPORTED</p>
                   <p className={`text-sm font-bold ${getDelayColor(selected.created_at)}`}>
@@ -531,7 +527,7 @@ function Dashboard() {
                 📄 Generate AI Report
               </button>
 
-              {/* Assignment status (friend's version) */}
+              {/* Assignment status */}
               <div className="bg-gray-700 rounded-lg p-3 mt-3">
                 <p className="text-gray-400 text-xs mb-1">👤 ASSIGNED TO</p>
                 <p className="text-white font-semibold text-sm">
@@ -544,14 +540,14 @@ function Dashboard() {
                         const time = parseTime(selected.assigned_at)
                         const hrs = (Date.now() - time.getTime()) / (1000 * 3600)
                         if (hrs < 0.5) return `✅ Recently assigned (${getTimeAgo(selected.assigned_at)})`
-                        if (hrs < 2)   return `⚠️ Awaiting response (${getTimeAgo(selected.assigned_at)})`
-                        return             `🚨 No response (${getTimeAgo(selected.assigned_at)})`
+                        if (hrs < 2) return `⚠️ Awaiting response (${getTimeAgo(selected.assigned_at)})`
+                        return `🚨 No response (${getTimeAgo(selected.assigned_at)})`
                       })()
                   }
                 </p>
               </div>
 
-              {/* NGO Action Panel (friend's version) */}
+              {/* NGO Action Panel */}
               <div className="mt-4 space-y-2">
                 <button
                   onClick={() => reassignCluster(selected.id)}
