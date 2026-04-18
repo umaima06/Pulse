@@ -112,6 +112,7 @@ async function enrichWithPULSEAI(reportId, rawText) {
       batch.set(ref, {
         ...cluster,
         isDemo: true,
+        ngo_id: 'default',
         updated_at: admin.firestore.FieldValue.serverTimestamp()
       });
     }
@@ -360,6 +361,7 @@ async function handleBotConversation(senderNumber, incomingText) {
       days_unmet:      conv.days_unmet,
       status:          'new',
       source:          'whatsapp_bot',
+      ngo_id: 'default',
       timestamp:       admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -508,6 +510,7 @@ app.post('/incoming-message', async (req, res) => {
       language:      '',
       summary:       '',
       status:        'new',
+      ngo_id: 'default',
       timestamp:     admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -563,6 +566,7 @@ app.post('/register-volunteer', async (req, res) => {
       phone:            phone || '',
       available:        true,
       assigned_task_id: '',
+      ngo_id: 'default',
       registered_at:    admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -631,8 +635,10 @@ app.post('/match-volunteers', async (req, res) => {
   }
 });
 
+
 // Assign volunteer to cluster — creates a task
 app.post('/assign-volunteer', async (req, res) => {
+  
   try {
     const { cluster_id, volunteer_id } = req.body;
 
@@ -645,7 +651,24 @@ app.post('/assign-volunteer', async (req, res) => {
 
     const cluster = clusterDoc.data();
     const volunteer = volunteerDoc.data();
+    const reportIds = cluster.report_ids || [];
 
+let bestReport = null;
+
+for (const reportId of reportIds) {
+  const doc = await db.collection('reports').doc(reportId).get();
+  if (!doc.exists) continue;
+
+  const data = doc.data();
+
+  if (!bestReport || data.urgency_score > bestReport.urgency_score) {
+    bestReport = { id: doc.id, ...data };
+  }
+}
+
+if (!bestReport) {
+  return res.status(400).json({ error: "No valid report found in cluster" });
+}
     const taskRef = await db.collection('tasks').add({
       cluster_id,
       volunteer_id,
@@ -658,6 +681,8 @@ app.post('/assign-volunteer', async (req, res) => {
       affected_people: bestReport.affected_people,
       volunteer_name: volunteer.name,
       status:         'assigned',
+      assigned_at: admin.firestore.FieldValue.serverTimestamp(),
+      ngo_id: cluster.ngo_id || 'default',
       timestamp:      admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -665,10 +690,46 @@ app.post('/assign-volunteer', async (req, res) => {
       available:        false,
       assigned_task_id: taskRef.id
     });
+    // 🔥 UPDATE CLUSTER (THIS FIXES YOUR UI)
+await db.collection('clusters').doc(cluster_id).update({
+  assigned_volunteer_id: volunteer_id,
+  assigned_task_id: taskRef.id,
+  assigned_at: admin.firestore.FieldValue.serverTimestamp(),
 
+  // 🔥 ADD THESE FOR UI
+  ui_assigned: true,
+  ui_assigned_to: volunteer.name,
+  ui_urgency: bestReport.urgency_score,
+  ui_days_unmet: bestReport.days_unmet || 0,
+  ui_reported_at: bestReport.timestamp || null
+});
+// 🔥 SEND WHATSAPP + SMS HERE (NOT ONLY AUTO ASSIGN)
+if (volunteer.phone) {
+  const twilio = require('twilio')(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+
+  await twilio.messages.create({
+    body: `🚨 PULSE TASK ASSIGNED
+📍 Location: ${bestReport.location_text}
+⚠️ Issue: ${cluster.need_type}
+👥 People affected: ${bestReport.affected_people}
+📝 Details: ${bestReport.summary || 'No extra details'}
+
+Reply:
+ACCEPT → take task
+DECLINE → skip
+DONE → mark complete`,
+    from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+    to: `whatsapp:${volunteer.phone}`
+  });
+
+  console.log(`📱 WhatsApp sent to ${volunteer.name}`);
+}
     console.log(`✅ Task ${taskRef.id} — ${volunteer.name} assigned to cluster ${cluster_id}`);
     res.json({ success: true, task_id: taskRef.id });
-
+   
   } catch (error) {
     console.error('❌ Assignment error:', error);
     res.status(500).json({ error: 'Assignment failed' });
@@ -685,11 +746,20 @@ app.post('/update-task', async (req, res) => {
     // If done, mark volunteer available again
     if (status === 'done') {
       const taskDoc = await db.collection('tasks').doc(task_id).get();
+const cluster_id = taskDoc.data().cluster_id;
       const volunteer_id = taskDoc.data().volunteer_id;
       await db.collection('volunteers').doc(volunteer_id).update({
         available:        true,
         assigned_task_id: ''
       });
+      await db.collection('clusters').doc(cluster_id).update({
+  status: 'resolved',
+  task_status: 'done',
+  resolved_at: admin.firestore.FieldValue.serverTimestamp(),
+  assigned_volunteer_id: '',
+  assigned_task_id: '',
+  ui_status: 'done'
+});
       console.log(`✅ Task ${task_id} completed — volunteer freed`);
     }
 
@@ -758,6 +828,7 @@ async function autoAssignIfUrgent(clusterId) {
     // Pick closest
     scored.sort((a, b) => a.distance_km - b.distance_km);
     const best = scored[0];
+    const reportIds = cluster.report_ids || [];
 
     // Get all reports inside this cluster
   const reportIds = cluster.report_ids || [];
@@ -768,33 +839,38 @@ async function autoAssignIfUrgent(clusterId) {
   }
   
   // Pick MOST URGENT report
-  let bestReport = null;
-  
-  for (const reportId of reportIds) {
-    const doc = await db.collection('reports').doc(reportId).get();
-    if (!doc.exists) continue;
-    
-    const data = doc.data();
-    
-    if (!bestReport || data.urgency_score > bestReport.urgency_score) {
-      bestReport = { id: doc.id, ...data };
-    }
-  }
-  
-  if (!bestReport) return;
 
+let bestReport = null;
+
+for (const reportId of reportIds) {
+  const doc = await db.collection('reports').doc(reportId).get();
+  if (!doc.exists) continue;
+
+  const data = doc.data();
+
+  if (!bestReport || data.urgency_score > bestReport.urgency_score) {
+    bestReport = { id: doc.id, ...data };
+  }
+}
+
+if (!bestReport) {
+  return res.status(400).json({ error: "No valid report found in cluster" });
+}
     // Create task
     const taskRef = await db.collection('tasks').add({
       report_id: bestReport.id,
       location_text: bestReport.location_text,
       location_lat: bestReport.location_lat,
       location_lng: bestReport.location_lng,
-      issue: bestReport.need_type,
-      people: bestReport.affected_people,
-      details: bestReport.raw_text,
-      status: 'assigned',
-      assigned_to: best.volunteer_id,
-      created_at: admin.firestore.FieldValue.serverTimestamp()
+      report_id: bestReport.id,
+      summary: bestReport.summary,
+      affected_people: bestReport.affected_people,
+      volunteer_name: best.name,
+      status:         'assigned',
+      auto_assigned:  true,
+      ngo_id: cluster.ngo_id || 'default',
+      assigned_at: admin.firestore.FieldValue.serverTimestamp(),
+      timestamp:      admin.firestore.FieldValue.serverTimestamp()
     });
 
     // Mark volunteer unavailable
@@ -849,7 +925,10 @@ await twilio.messages.create({
   ⚠️ Issue: ${bestReport.need_type}
   👥 People affected: ${bestReport.affected_people}
   📝 Details: ${bestReport.summary || 'No extra details'}
-  Reply ACCEPT to confirm.`,
+  Reply:
+  ACCEPT → take task
+  DECLINE → skip
+  DONE → mark complete`,
   from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
   to: `whatsapp:${best.phone}`
 });
@@ -876,8 +955,9 @@ Reply ACCEPT to confirm.`,
   } catch (err) {
     console.error('❌ Auto assign failed:', err.message);
   }
-
 }
+
+ 
 
 // Volunteer replies ACCEPT or DONE via SMS
 app.post('/sms-reply', async (req, res) => {
@@ -1066,6 +1146,7 @@ app.all('/handle-recording', async (req, res) => {
       source:        'ivr',
       recording_url: recordingUrl,
       status:        'new',
+      ngo_id: 'default',
       timestamp:     admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -1200,6 +1281,7 @@ async function runEscalation() {
         batch.set(ref, {
           ...cluster,
           isDemo: true,
+          ngo_id: 'default',
           updated_at: admin.firestore.FieldValue.serverTimestamp()
         });
       }
@@ -1375,7 +1457,8 @@ function generateRandomReport() {
     status: "analyzed",
     source: "demo",
     isDemo: true,
-    timestamp: admin.firestore.FieldValue.serverTimestamp()
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    created_at: admin.firestore.FieldValue.serverTimestamp()
   };
 }
 
@@ -1522,6 +1605,7 @@ async function generatePredictiveAlerts() {
       batch.set(ref, {
         ...alert,
         status: 'active',
+        ngo_id: 'default',
         created_at: admin.firestore.FieldValue.serverTimestamp()
       });
     }
@@ -1736,6 +1820,386 @@ app.post('/register-volunteer-ngo', async (req, res) => {
   } catch (error) {
     console.error('❌ Registration error:', error);
     res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+app.get('/ngo-tasks', async (req, res) => {
+  try {
+    const ngoId = getNgoId(req);
+
+    const snapshot = await db.collection('tasks')
+      .where('ngo_id', '==', ngoId)
+      .get();
+
+    const tasks = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.json({ success: true, tasks });
+
+  } catch (error) {
+    console.error('❌ NGO tasks error:', error);
+    res.status(500).json({ error: 'Failed to fetch tasks' });
+  }
+});
+
+app.post('/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    const text = message.toLowerCase();
+
+    // 🔥 Get number from ENV (NO HARDCODE)
+    const phone = process.env.TWILIO_PHONE_NUMBER;
+    const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+
+    // Convert to WhatsApp link format (remove +)
+    const whatsappLink = `https://wa.me/${phone.replace('+', '')}`;
+
+    // ─── 1. QUICK INTENT DETECTION ─────────────────────
+
+    const isReport =
+  /water|food|medical|problem|emergency|paani|khana|bimaar/i.test(text);
+
+    const isAnalytics =
+      /how many|stats|analytics|people helped|reports today/i.test(text);
+
+    const isAlerts =
+      /urgent|crisis|alert|danger/i.test(text);
+
+    const isInfo =
+      /what is pulse|what does pulse|how does this work/i.test(text);
+
+    // ─── 2. REPORT MODE 🚨 ─────────────────────────────
+
+    if (isReport) {
+      return res.json({
+        type: "report",
+        reply: `🚨 I understand this is a serious issue.
+
+Please report it properly so we can act fast:
+
+👉 Use WhatsApp  
+👉 Or use quick form below`,
+
+        actions: [
+         { 
+  label: "Open Intake Form", 
+  link: `${baseUrl}/intake?msg=${encodeURIComponent(message)}`
+},
+          { label: "WhatsApp Report", link: whatsappLink }
+        ]
+      });
+    }
+
+    // ─── 3. ANALYTICS MODE 📊 ─────────────────────────
+
+if (isAnalytics) {
+  const analyticsRes = await fetch(`${baseUrl}/analytics`);
+  const data = await analyticsRes.json();
+
+  const affected = data.analytics?.reports?.total_affected || 0;
+  const reports = data.analytics?.reports?.total || 0;
+  const volunteers = data.analytics?.volunteers?.available || 0;
+
+  return res.json({
+reply: `📊 Today’s Impact:
+
+We’ve helped ${affected} people across ${reports} reports 🙌
+
+Volunteers Active: ${volunteers}`
+  });
+}
+
+    // ─── 4. ALERT MODE ⚠️ ─────────────────────────────
+
+    if (isAlerts) {
+      const alertRes = await fetch(`${baseUrl}/predictive-alerts`);
+      const data = await alertRes.json();
+
+      if (!data.alerts || data.alerts.length === 0) {
+        return res.json({ reply: "✅ No major crises predicted right now." });
+      }
+
+      const top = data.alerts[0];
+
+      return res.json({
+        reply: `⚠️ Alert:
+
+${top.region} may face ${top.need_type} crisis in ${top.predicted_month}.
+Confidence: ${top.confidence}`
+      });
+    }
+
+    // ─── 5. INFO MODE 🧠 ─────────────────────────────
+
+    if (isInfo) {
+      return res.json({
+        reply: `PULSE is an AI-powered disaster response system.
+
+We:
+• Detect emergencies using AI
+• Cluster crisis zones
+• Assign nearest volunteers
+• Predict future disasters
+
+Basically… we turn chaos into coordinated action.`
+      });
+    }
+
+   // ─── 6. AI MODE 🤖 ─────────────────────────────
+
+const aiRes = await fetch(`${process.env.AI_BASE_URL}/ask-ai`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ message })
+});
+
+const aiData = await aiRes.json();
+
+return res.json({
+  reply: aiData.reply
+});
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ reply: "Server error" });
+  }
+});
+app.post('/reassign', async (req, res) => {
+  try {
+    const { cluster_id } = req.body;
+
+    const clusterRef = db.collection('clusters').doc(cluster_id);
+    const clusterDoc = await clusterRef.get();
+
+    if (!clusterDoc.exists) {
+      return res.status(404).json({ error: 'Cluster not found' });
+    }
+
+    const cluster = clusterDoc.data();
+    const currentVolunteerId = cluster.assigned_volunteer_id;
+    const currentTaskId = cluster.assigned_task_id;
+
+    // 🔥 STEP 1: FREE OLD VOLUNTEER
+    if (currentVolunteerId) {
+      await db.collection('volunteers').doc(currentVolunteerId).update({
+        available: true,
+        assigned_task_id: ''
+      });
+      console.log(`♻️ Freed old volunteer ${currentVolunteerId}`);
+    }
+
+    // 🔥 STEP 2: (optional but clean) mark old task inactive
+    if (currentTaskId) {
+      await db.collection('tasks').doc(currentTaskId).update({
+        status: 'reassigned'
+      });
+    }
+
+    // 🔥 STEP 3: FIND NEW VOLUNTEER
+    const requiredSkills = skillMap[cluster.need_type] || [];
+
+    const volunteersSnapshot = await db.collection('volunteers')
+      .where('available', '==', true)
+      .get();
+
+    let scored = [];
+
+    volunteersSnapshot.forEach(doc => {
+      const v = doc.data();
+
+      if (doc.id === currentVolunteerId) return;
+
+      const hasSkill = v.skills?.some(s => requiredSkills.includes(s));
+      if (!hasSkill) return;
+
+      const distance = calculateDistance(
+        cluster.centroid_lat,
+        cluster.centroid_lon,
+        v.location_lat,
+        v.location_lng
+      );
+
+      scored.push({
+        volunteer_id: doc.id,
+        name: v.name,
+        distance
+      });
+    });
+
+    if (scored.length === 0) {
+      return res.status(400).json({ error: 'No alternate volunteers available' });
+    }
+
+    scored.sort((a, b) => a.distance - b.distance);
+    const best = scored[0];
+
+    // 🔥 STEP 4: REUSE ASSIGN LOGIC
+    const assignRes = await fetch(`http://localhost:${PORT}/assign-volunteer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cluster_id,
+        volunteer_id: best.volunteer_id
+      })
+    });
+
+    const data = await assignRes.json();
+
+    res.json({
+      success: true,
+      reassigned_to: best.name,
+      task: data
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Reassign failed' });
+  }
+});
+
+app.post('/force-assign', async (req, res) => {
+  try {
+    const { cluster_id } = req.body;
+
+    const clusterRef = db.collection('clusters').doc(cluster_id);
+    const clusterDoc = await clusterRef.get();
+
+    if (!clusterDoc.exists) {
+      return res.status(404).json({ error: 'Cluster not found' });
+    }
+
+    const cluster = clusterDoc.data();
+    const currentVolunteerId = cluster.assigned_volunteer_id;
+    const currentTaskId = cluster.assigned_task_id;
+
+    // 🔥 FREE OLD VOLUNTEER
+    if (currentVolunteerId) {
+      await db.collection('volunteers').doc(currentVolunteerId).update({
+        available: true,
+        assigned_task_id: ''
+      });
+    }
+
+    if (currentTaskId) {
+      await db.collection('tasks').doc(currentTaskId).update({
+        status: 'reassigned'
+      });
+    }
+
+    const requiredSkills = skillMap[cluster.need_type] || [];
+    const volunteersSnapshot = await db.collection('volunteers').get();
+
+    let scored = [];
+
+    volunteersSnapshot.forEach(doc => {
+      const v = doc.data();
+
+      const hasSkill = v.skills?.some(s => requiredSkills.includes(s));
+      if (!hasSkill) return;
+
+      const distance = calculateDistance(
+        cluster.centroid_lat,
+        cluster.centroid_lon,
+        v.location_lat,
+        v.location_lng
+      );
+
+      scored.push({
+        volunteer_id: doc.id,
+        name: v.name,
+        distance
+      });
+    });
+
+    if (scored.length === 0) {
+      return res.status(400).json({ error: 'No volunteers found' });
+    }
+
+    scored.sort((a, b) => a.distance - b.distance);
+    const best = scored[0];
+
+    const assignRes = await fetch(`http://localhost:${PORT}/assign-volunteer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cluster_id,
+        volunteer_id: best.volunteer_id
+      })
+    });
+
+    const data = await assignRes.json();
+
+    res.json({
+      success: true,
+      forced_to: best.name,
+      task: data
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Force assign failed' });
+  }
+});
+
+app.post('/resolve-cluster', async (req, res) => {
+  try {
+    const { cluster_id, note } = req.body;
+
+    const clusterRef = db.collection('clusters').doc(cluster_id);
+    const clusterDoc = await clusterRef.get();
+
+    if (!clusterDoc.exists) {
+      return res.status(404).json({ error: 'Cluster not found' });
+    }
+
+    const cluster = clusterDoc.data();
+
+    // 🔥 STEP 1: mark cluster resolved + clear assignment
+await clusterRef.update({
+  status: "resolved",
+  resolved_at: admin.firestore.FieldValue.serverTimestamp(),
+  resolution_note: note || "Resolved by NGO",
+  assigned_volunteer_id: "",
+  assigned_task_id: ""
+});
+    // 🔥 STEP 2: get all tasks for cluster
+    const tasksSnap = await db.collection('tasks')
+      .where('cluster_id', '==', cluster_id)
+      .get();
+
+    const batch = db.batch();
+
+    for (const doc of tasksSnap.docs) {
+      const task = doc.data();
+
+      // ✅ mark task done
+      batch.update(doc.ref, { status: 'done' });
+
+      // 🔥 STEP 3: free volunteer
+      if (task.volunteer_id) {
+        const volRef = db.collection('volunteers').doc(task.volunteer_id);
+
+        batch.update(volRef, {
+          available: true,
+          assigned_task_id: ''
+        });
+      }
+    }
+
+    await batch.commit();
+
+    console.log(`✅ Cluster ${cluster_id} resolved & cleaned`);
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Resolve failed' });
   }
 });
 

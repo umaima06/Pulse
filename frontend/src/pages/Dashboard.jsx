@@ -3,10 +3,85 @@ import { GoogleMap, useJsApiLoader, Circle } from '@react-google-maps/api'
 import { collection, onSnapshot, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
+import { doc } from 'firebase/firestore'
 
 const mapContainerStyle = { width: '100%', height: '100%' }
 const center = { lat: 20.5937, lng: 78.9629 }
 console.log(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)
+const API_BASE = 'http://localhost:3000'; // 🔥 change if deployed
+
+const reassignCluster = async (id) => {
+  try {
+    const res = await fetch(`${API_BASE}/reassign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cluster_id: id })
+    });
+
+    const data = await res.json();
+    console.log('Reassign:', data);
+
+    if (!res.ok) throw new Error(data.error || 'Reassign failed');
+
+    alert(`🔄 Reassigned to ${data.reassigned_to || 'new volunteer'}`);
+    
+  } catch (err) {
+    console.error(err);
+    alert(`❌ ${err.message}`);
+  }
+};
+
+const forceAssignCluster = async (id) => {
+  try {
+    const res = await fetch(`${API_BASE}/force-assign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cluster_id: id })
+    });
+
+    const data = await res.json();
+    console.log('Force Assign:', data);
+
+    if (!res.ok) throw new Error(data.error || 'Force assign failed');
+
+    alert(`⚡ Force assigned to ${data.forced_to || 'volunteer'}`);
+    
+  } catch (err) {
+    console.error(err);
+    alert(`❌ ${err.message}`);
+  }
+};
+
+const resolveCluster = async (id) => {
+  const note = prompt("📝 Enter resolution note (what was done, how it was solved):");
+
+  if (!note) {
+    alert("❌ Resolution note is required");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/resolve-cluster`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cluster_id: id,
+        note: note
+      })
+    });
+
+    const data = await res.json();
+    console.log('Resolve:', data);
+
+    if (!res.ok) throw new Error(data.error || 'Resolve failed');
+
+    alert('✅ Cluster marked as resolved');
+
+  } catch (err) {
+    console.error(err);
+    alert(`❌ ${err.message}`);
+  }
+};
 
 function Dashboard() {
   const [showDemo, setShowDemo] = useState(false)
@@ -24,7 +99,7 @@ function Dashboard() {
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   })
   const [unclusteredReports, setUnclusteredReports] = useState([])
-
+  const [, forceUpdate] = useState(0);
   useEffect(() => {
     // Listen to clusters live
     const unsub1 = onSnapshot(
@@ -63,6 +138,23 @@ function Dashboard() {
     const unclustered = reports.filter(r => !clusteredIds.has(r.id))
     setUnclusteredReports(unclustered)
   }, [clusters, reports])
+  
+  useEffect(() => {
+  const interval = setInterval(() => {
+    forceUpdate(prev => prev + 1);
+  }, 60000); // every 1 min
+
+  return () => clearInterval(interval);
+}, []);
+
+useEffect(() => {
+  if (!selected?.id) return;
+  const unsub = onSnapshot(doc(db, "clusters", selected.id), (doc) => {
+    setSelected({ id: doc.id, ...doc.data() });
+  });
+
+  return () => unsub();
+}, [selected?.id]);
 
   const triggerDemo = async () => {
     setDemoLoading(true)
@@ -99,6 +191,61 @@ function Dashboard() {
     if (urgency >= 50) return { text: 'HIGH', bg: 'bg-orange-500' }
     return { text: 'MEDIUM', bg: 'bg-yellow-500' }
   }
+
+  const safe = (v) => (v === 0 ? 0 : v ?? "Unknown");
+
+const parseTime = (timestamp) => {
+  if (!timestamp) return null;
+
+  // Firestore Timestamp (real safe check)
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+
+  // fallback formats
+  if (timestamp?.seconds) {
+    return new Date(timestamp.seconds * 1000);
+  }
+
+  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    return new Date(timestamp);
+  }
+
+  return null;
+};
+const getTimeAgo = (timestamp) => {
+  const time = parseTime(timestamp);
+  if (!time) return 'Unknown';
+
+  const diff = (Date.now() - time.getTime()) / 1000;
+  const mins = Math.floor(diff / 60);
+  const hrs = Math.floor(mins / 60);
+
+  if (hrs > 0) return `${hrs} hr ago`;
+  return `${mins} min ago`;
+};
+
+const getDelayColor = (timestamp) => {
+  const time = parseTime(timestamp);
+  if (!time) return 'text-gray-400';
+
+  const hrs = (Date.now() - time.getTime()) / (1000 * 3600);
+
+  if (hrs > 3) return 'text-red-400';     // 🚨 BAD
+  if (hrs > 1) return 'text-yellow-400';  // ⚠️ MID
+  return 'text-green-400';                // ✅ OK
+};
+const getDaysUnmet = (created_at) => {
+  const time = parseTime(created_at);
+  if (!time) return '0 days';
+
+  const days = Math.max(
+    0,
+    Math.floor((Date.now() - time.getTime()) / (1000 * 3600 * 24))
+  );
+
+  return `${days} days`;
+};
 
   const generateReport = async (cluster) => {
     setReportLoading(true)
@@ -271,17 +418,59 @@ function Dashboard() {
               </div>
               <div className="space-y-3">
                 {[
-                  { label: 'NEED TYPE', value: selected.need_type || 'Unknown' },
-                  { label: 'REPORTS IN CLUSTER', value: selected.report_count || 1 },
-                  { label: 'VILLAGES AFFECTED', value: selected.village_count || 1 },
-                  { label: 'PEOPLE AFFECTED', value: selected.total_affected ? `${selected.total_affected.toLocaleString()} people` : 'Unknown' },
-                  { label: 'DAYS UNMET', value: selected.days_unmet ? `${selected.days_unmet} days` : 'Unknown' },
-                ].map(item => (
+  { label: 'NEED TYPE', value: selected.need_type || 'Unknown' },
+  { label: 'REPORTS IN CLUSTER', value: selected.report_count || 1 },
+  { label: 'VILLAGES AFFECTED', value: selected.village_count || 1 },
+  {
+    label: 'PEOPLE AFFECTED',
+    value:
+      selected.total_affected != null
+        ? `${selected.total_affected.toLocaleString()} people`
+        : "Unknown"
+  },
+  {
+    label: 'DAYS UNMET',
+    value: getDaysUnmet(
+  selected.created_at ??
+  selected.timestamp ??
+  selected.assigned_at
+)
+  },
+].map(item => (
                   <div key={item.label} className="bg-gray-700 rounded-lg p-3">
                     <p className="text-gray-400 text-xs mb-1">{item.label}</p>
                     <p className="text-white font-medium capitalize text-sm">{item.value}</p>
                   </div>
                 ))}
+                {/* ⏱ RESPONSE TRACKING */}
+<div className="space-y-3 mt-3">
+  <div className="bg-gray-700 rounded-lg p-3">
+    <p className="text-gray-400 text-xs">⏱ REPORTED</p>
+    <p className={"text-sm font-bold " + getDelayColor(selected.created_at)}>
+      {getTimeAgo(selected.created_at ?? selected.timestamp)}
+    </p>
+  </div>
+
+<div className="bg-gray-700 rounded-lg p-3">
+  <p className="text-gray-400 text-xs">👤 STATUS</p>
+
+  <p className="text-sm font-bold">
+    {selected.status === "resolved"
+      ? "✅ DONE"
+      : selected.assigned_at
+        ? "👤 ASSIGNED"
+        : "⚠️ NOT ASSIGNED"}
+  </p>
+
+  <p className="text-xs mt-1 text-gray-300">
+    {selected.status === "resolved"
+      ? `Completed ${getTimeAgo(selected.resolved_at)}`
+      : selected.assigned_at
+        ? `Assigned ${getTimeAgo(selected.assigned_at)}`
+        : "Waiting for assignment"}
+  </p>
+</div>
+</div>
                 {selected.summary && (
                   <div className="bg-gray-700 rounded-lg p-3">
                     <p className="text-gray-400 text-xs mb-1">SUMMARY</p>
@@ -300,6 +489,56 @@ function Dashboard() {
                 className="mt-5 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105">
                 📄 Generate AI Report
               </button>
+              {/* 🚨 ASSIGNMENT STATUS */}
+<div className="bg-gray-700 rounded-lg p-3 mt-3">
+  <p className="text-gray-400 text-xs mb-1">👤 ASSIGNED TO</p>
+
+  <p className="text-white font-semibold text-sm">
+    {selected.ui_assigned_to || selected.volunteer_name || selected.assigned_volunteer_id || "Not assigned"}
+  </p>
+
+<p className={
+  "text-xs mt-1 font-bold " +
+  (selected.assigned_at
+    ? getDelayColor(selected.assigned_at)
+    : "text-gray-400")
+}>
+  {!selected.assigned_at
+    ? "⚠️ Not assigned yet"
+    : (() => {
+        const time = parseTime(selected.assigned_at);
+        const hrs = (Date.now() - time.getTime()) / (1000 * 3600);
+
+        if (hrs < 0.5) return `✅ Recently assigned (${getTimeAgo(selected.assigned_at)})`;
+        if (hrs < 2) return `⚠️ Awaiting response (${getTimeAgo(selected.assigned_at)})`;
+        return `🚨 No response (${getTimeAgo(selected.assigned_at)})`;
+      })()
+  }
+</p>
+</div>
+              {/* 🚨 NGO ACTION PANEL */}
+<div className="mt-4 space-y-2">
+  <button
+    onClick={() => reassignCluster(selected.id)}
+    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 rounded-lg"
+  >
+    🔄 Reassign
+  </button>
+
+  <button
+    onClick={() => forceAssignCluster(selected.id)}
+    className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg"
+  >
+    ⚡ Force Assign
+  </button>
+
+  <button
+    onClick={() => resolveCluster(selected.id)}
+    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg"
+  >
+    ✅ Mark Resolved
+  </button>
+</div>
             </div>
           </div>
         )}

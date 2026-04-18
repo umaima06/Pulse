@@ -319,6 +319,21 @@ python seed_data.py reset   # fresh start
 - Analytics endpoint
 - AI report generation proxy
 - Demo trigger for live demonstrations
+- Multilingual conversational bot (6 Indian languages)
+- Smart message classification (direct vs guided intake)
+- Multilingual IVR system with language selection
+- Predictive alerts API integration
+- Analytics dashboard API
+- Frontend-triggered IVR simulation endpoint
+- AI-powered Chatbot interface for real-time user interaction and guidance
+- Intent-based chatbot system supporting reporting, analytics, and system explanation
+- Quick action UI for faster access to key features (Report / About / Stats)
+- Chatbot-to-frontend navigation system (intake form routing + message prefill)
+- Unified frontend-backend chat integration with structured responses
+- Real-time cluster action system with WhatsApp-based volunteer coordination (assign, reassign, force-assign, resolve workflow)
+- Live cluster status tracking using Firestore onSnapshot (instant UI updates without refresh)
+- Response tracking system for volunteers (assigned → accepted → resolved lifecycle monitoring)
+- Time-based urgency intelligence layer including response delay tracking and “days unmet” crisis duration metric
 
 ---
 
@@ -415,7 +430,246 @@ python seed_data.py reset   # fresh start
   - Each NGO only sees their own data
   - NGO ID passed via `x-ngo-id` header or request body
   - `/register-volunteer-ngo` tags volunteers to specific NGO
-    
+
+---
+### Day 4 — Multilingual + Advanced Intake + IVR Upgrade
+
+- Upgraded WhatsApp conversational bot to support **6 languages**:
+  Hindi, English, Telugu, Tamil, Marathi, Bengali
+- Added automatic **language detection using AI**
+- Bot dynamically switches language per user conversation
+- Introduced **smart fallback logic**:
+  - If message is detailed → skip bot → direct AI processing
+  - If vague → guided conversation starts
+
+- Improved conversation UX:
+  - Fully localized prompts and confirmations
+  - Language stored per user in `/conversations`
+
+- Built **multilingual IVR system**:
+  - Caller selects preferred language (Hindi, Telugu, Tamil, English)
+  - Menu adapts to selected language
+  - Voice prompts dynamically generated per language
+  - Recording stored with language metadata
+
+- Enhanced IVR reliability:
+  - Switched to `app.all()` for Twilio compatibility
+  - Added ngrok-based routing for live testing
+  - Built `/start-call` endpoint to trigger IVR from frontend (demo mode)
+
+- Improved AI enrichment pipeline:
+  - Reports now tagged with detected language
+  - Better context passed to AI for analysis
+
+- Added **Predictive Alerts API integration**:
+  - `/predictive-alerts` endpoint feeds frontend predictions page
+  - Alerts generated using historical crisis patterns
+
+- Built **Analytics API**:
+  - `/analytics` endpoint provides:
+    - Total reports, volunteers, tasks
+    - Crisis type breakdown
+    - Cluster severity distribution
+
+---
+## Day 5 — Intelligent Chatbot + Frontend UX Layer 
+
+Built a fully interactive chatbot assistant (**PULSE AI Frontend Interface**) to improve real-time user interaction, reporting, and system navigation.
+
+---
+
+## Chatbot System (Frontend)
+
+Developed a floating chatbot UI using React with:
+
+- Framer Motion animations for smooth open/close transitions  
+- Lucide React icon integration (`MessageCircle` icon)  
+- Persistent chat state using React hooks  
+- Auto-scroll to latest messages  
+- Loading state simulation (“⚡ Thinking...”)  
+- Action-based message rendering (buttons inside bot responses)  
+
+---
+
+## Quick Action Buttons
+
+Added predefined quick actions for faster interaction:
+
+- 🚨 Report Problem  
+- 🤖 About PULSE  
+- 📊 View Stats  
+
+These allow users to trigger common queries without typing manually.
+
+UI improvements:
+
+- Full-width styled buttons  
+- Color-coded actions (red / green / blue)  
+- Better spacing + hover feedback  
+
+---
+
+## 🔗 Routing + Navigation Fix
+
+Connected chatbot action buttons to React Router using `useNavigate()`.
+
+Fixed internal vs external link handling:
+
+- `/intake` → internal navigation  
+- WhatsApp → external link handling  
+
+Enabled query param based routing:
+
+- `/intake?msg=...` → prefilled reports  
+
+---
+
+## Backend Integration
+
+Chatbot communicates with backend via:
+
+```http
+POST /chat
+```
+## Backend Handling
+
+Handles:
+
+- User message classification  
+- Intent detection  
+- AI fallback response (Groq / LLM)  
+- Structured response with optional `actions[]`  
+
+---
+
+## Smart Intent Handling (Backend)
+
+### Report Mode
+
+Detects emergency keywords (water, food, help, etc.)
+
+Redirects user to:
+
+- Intake form  
+- WhatsApp reporting  
+
+---
+
+### Analytics Mode (FIXED)
+
+Fetches live system stats from `/analytics`
+
+**FIXED:** removed hardcoded values  
+
+Now dynamically uses Firestore-backed data:
+
+- People helped (derived from `total_affected`)  
+- Total reports  
+- Volunteers active  
+
+---
+
+### Alert Mode
+
+Fetches predictive crisis alerts from `/predictive-alerts`
+
+Returns:
+
+- Top risk region  
+- Confidence score  
+
+---
+
+### Info Mode
+
+Explains how PULSE system works in simple terms  
+
+---
+
+### AI Fallback Mode
+
+Groq LLM-based response for general queries when no intent is matched
+
+---
+
+## Intake System Upgrade
+
+Intake page now supports prefilled chatbot messages:
+
+Uses:
+
+- `useLocation()` to read query params  
+- Auto-fills message field  
+
+AI pipeline remains powered via Flask `/analyze`
+
+Firestore stores enriched reports:
+
+- Urgency score  
+- Affected people  
+- Location parsing  
+- Language detection  
+- AI summary
+  
+---
+## Day 6 — Cluster Action System + Real-time Assignment Tracking 
+
+Built a complete cluster action management system for NGO dashboard control.
+
+### Cluster Lifecycle Workflow
+Added full workflow support for cluster actions:
+- 🔄 Reassign cluster to a different volunteer  
+- ⚡ Force-assign cluster for high urgency cases  
+- ✅ Mark cluster as resolved with resolution note stored in backend  
+
+### Real-time Notifications
+
+- Integrated Twilio WhatsApp notification system for all assignment actions  
+- Volunteers receive instant WhatsApp updates on assignment changes  
+- Ensures real-time field coordination between NGO and volunteers  
+
+### Live Status Tracking
+- Implemented real-time cluster status tracking using Firestore sync  
+- UI updates instantly via `onSnapshot` listeners  
+- No manual refresh required  
+
+### Status Flow Management
+- Properly mapped workflow:  
+  `Assigned → Accepted → Done → Resolved`  
+- Fixed inconsistencies in status rendering across dashboard panels  
+
+### Volunteer Response Tracking
+- Tracks assignment timestamp (`assigned_at`)  
+- Tracks acceptance and completion events  
+- Displays real-time status transitions in UI 
+- Includes “days unmet” metric to track unresolved duration since report creation 
+
+### Delay & Urgency Indicators
+- Shows:
+  - Recently assigned  
+  - Awaiting response  
+  - No response states 
+- Color-coded urgency urgency-based response tracking (green/yellow/red)
+
+### Cluster Visualization Improvements
+- High urgency clusters show expanded radius overlay  
+- Medium/low urgency clusters dynamically styled  
+- Unclustered reports displayed separately for clarity  
+
+### UI/UX Enhancements
+- Live Feed reflects real-time Firestore updates  
+- Cluster Detail Panel now shows:
+  - Assignment status  
+  - Response timing  
+  - Volunteer identity  
+  - Resolution state  
+
+### Bug Fixes
+- Fixed mismatched `assigned_at` and status conditions  
+- Corrected incorrect assignment state display in UI  
+- Prevented stale cluster status rendering
+
+---
 ### How The Full Pipeline Works
 ```
 Field Worker intake — four methods:
