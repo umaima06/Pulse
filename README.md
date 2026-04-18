@@ -750,47 +750,57 @@ Copy the https URL → paste in:
 - React + Vite project setup with Tailwind CSS
 - Firebase Firestore real-time connection + Firebase Auth (Google + Email)
 - Google Maps integration with live cluster visualization + glow animations
-- Landing page, Login/Register, and 8 core pages with shared Navbar
-- Volunteer registration form connected to backend
+- Landing page, Login/Register, and 10 core pages with shared Navbar
+- Live impact counter on landing page — pulls real numbers from backend analytics
+- Volunteer registration form with organization name field connected to backend
+- NGO registration with organization name — shown in navbar after login
 - Live feed sidebar with real-time incoming reports
 - Cluster detail side panel with AI report generation button + modal
 - Manual report intake form for NGO coordinators
-- Volunteer portal — phone lookup, task accept/done buttons
+- Volunteer portal — phone lookup, availability toggle, task accept/done, task history, Google Maps directions
 - Route protection — login required for dashboard pages
+- Demo trigger button — one click fires 3 live crisis reports on map
+- Predictive alerts banner — shows AI-predicted upcoming crises
+- Analytics page — live system stats, impact numbers, task breakdown charts
+- Mobile responsive navbar with hamburger menu
 - 404 Not Found page + loading spinners throughout
 
 ### Pages Built
 | Page | Route | What it does |
 |---|---|---|
-| Landing | `/` | Hero page — what PULSE is, how it works, stats, CTA |
-| Login | `/login` | Firebase Auth — Google login or email/password register |
-| Dashboard | `/dashboard` | Live Google Map + color-coded crisis clusters + live feed |
+| Landing | `/` | Hero page + live impact counter (people helped, volunteers, crises resolved) |
+| Login | `/login` | Firebase Auth — Google login or email/password + organization name on register |
+| Dashboard | `/dashboard` | Live Google Map + clusters + live feed + 🚀 Fire Demo button |
 | Reports | `/reports` | Live incoming WhatsApp field reports with urgency scores |
 | Tasks | `/tasks` | Volunteer assignment tracker — pending, accepted, done |
 | Volunteers | `/volunteers` | All registered volunteers + available/busy status |
+| Analytics | `/analytics` | Live system stats — reports, clusters, volunteers, impact numbers |
 | Intake | `/intake` | NGO coordinator manually logs a crisis report |
-| Register | `/volunteer` | Volunteer registration form → saves to Firestore via backend |
-| My Tasks | `/my-tasks` | Volunteer portal — enter phone, see tasks, accept or complete |
+| Register | `/volunteer` | Volunteer registration form with organization name field |
+| My Tasks | `/my-tasks` | Volunteer portal — availability toggle, task accept/done, history, directions |
 
 ### Map Features
 - 🔴 Red circles = CRITICAL clusters (urgency 80+) with outer glow effect
 - 🟠 Orange circles = HIGH (urgency 50–79)
 - 🟡 Yellow circles = MEDIUM (below 50)
 - Click any circle → side panel shows cluster details, need type, urgency bar
-- 📄 Generate AI Report button → calls Person A's Flask `/generate-report` endpoint → shows in modal
+- 📄 Generate AI Report button → calls Person A's Flask `/generate-report` → shows in modal with copy button
 - 📡 Live Feed sidebar → real-time incoming reports from Firestore onSnapshot
+- 🚀 Fire Demo button → calls `/demo-trigger` → 3 crisis reports appear live on map instantly
+- ⚠️ Predictive alerts banner → shows AI-predicted upcoming crises from backend
 - Hide/Show feed toggle button on map
 
 ### Auth Flow
 - NGO coordinators → Login/Register via Google or Email at `/login`
-- Volunteers → Register at `/volunteer`, check tasks at `/my-tasks` (no login needed)
+- Organization name saved on register → shown in navbar after login
+- Volunteers → Register at `/volunteer` with organization field, check tasks at `/my-tasks`
 - All dashboard pages protected — redirects to `/login` if not authenticated
 - Logout button in navbar
 
 ### Components Built
 | Component | What it does |
 |---|---|
-| Navbar | Shared navbar with active link highlighting + logout button |
+| Navbar | Shared navbar with active links + org name display + logout + mobile hamburger |
 | ProtectedRoute | Wraps dashboard pages — redirects unauthenticated users to login |
 
 ### Installation
@@ -801,9 +811,7 @@ npm install
 
 ### Environment Variables
 Create a `.env` file inside the `frontend` folder:
-```
 VITE_GOOGLE_MAPS_API_KEY=your_key_here
-```
 
 ### Running Frontend
 ```powershell
