@@ -403,14 +403,49 @@ app.post('/incoming-message', async (req, res) => {
         if (taskId) {
           if (upperText === 'ACCEPT') {
             await db.collection('tasks').doc(taskId).update({ status: 'accepted' });
+            
+            // 🔥 GET TASK DATA
+            const taskDoc = await db.collection('tasks').doc(taskId).get();
+            const task = taskDoc.data();
+            const lat = task.location_lat;
+            const lng = task.location_lng;
+            
+            // 🗺️ GOOGLE MAPS LINK
+            // Navigation from volunteer's location to crisis location
+            const mapsLink = (volunteer.location_lat && volunteer.location_lng)
+            ? `https://www.google.com/maps/dir/?api=1&origin=${volunteer.location_lat},${volunteer.location_lng}&destination=${lat},${lng}&travelmode=driving`
+            : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+            // Calculate distance (if volunteer coords exist)
+            let distanceText = '';
+            let etaText = '';
+            
+            if (volunteer.location_lat && volunteer.location_lng && lat && lng) {
+              const distance = calculateDistance(
+                volunteer.location_lat, volunteer.location_lng, lat, lng);
+              const rounded = Math.round(distance * 10) / 10;
+              const eta = Math.round((distance / 40) * 60);
+              distanceText = `📏 Distance: ${rounded} km\n`;
+              etaText = `⏱️ ETA: ~${eta} mins\n`;
+            }
+            
             console.log(`✅ ${volunteer.name} accepted task`);
+            
             res.set('Content-Type', 'text/xml');
             return res.send(`
               <Response>
-                <Message>✅ Task accepted! Please proceed to the location. Reply DONE when complete.</Message>
+              <Message>✅ Task accepted, ${volunteer.name}!
+              📍 Crisis location: ${task.location_text}
+              ${distanceText}${etaText}🗺️ Navigation: ${mapsLink}
+              
+              ⚠️ Issue: ${task.need_type}
+              👥 People affected: ${task.affected_people || 'Unknown'}
+              📝 ${task.summary || task.raw_text || 'Proceed to location immediately'}
+
+              Reply DONE when complete.</Message>
               </Response>
-            `);
-          }
+              `);
+            }
 
           if (upperText === 'DONE') {
             await db.collection('tasks').doc(taskId).update({ status: 'done' });
@@ -724,21 +759,42 @@ async function autoAssignIfUrgent(clusterId) {
     scored.sort((a, b) => a.distance_km - b.distance_km);
     const best = scored[0];
 
+    // Get all reports inside this cluster
+  const reportIds = cluster.report_ids || [];
+  
+  if (reportIds.length === 0) {
+    console.log('⚠️ No reports in cluster');
+    return;
+  }
+  
+  // Pick MOST URGENT report
+  let bestReport = null;
+  
+  for (const reportId of reportIds) {
+    const doc = await db.collection('reports').doc(reportId).get();
+    if (!doc.exists) continue;
+    
+    const data = doc.data();
+    
+    if (!bestReport || data.urgency_score > bestReport.urgency_score) {
+      bestReport = { id: doc.id, ...data };
+    }
+  }
+  
+  if (!bestReport) return;
+
     // Create task
     const taskRef = await db.collection('tasks').add({
-      cluster_id:     clusterId,
-      volunteer_id:   best.volunteer_id,
-      need_type:      cluster.need_type,
+      report_id: bestReport.id,
       location_text: bestReport.location_text,
       location_lat: bestReport.location_lat,
       location_lng: bestReport.location_lng,
-      report_id: bestReport.id,
-      summary: bestReport.summary,
-      affected_people: bestReport.affected_people,
-      volunteer_name: best.name,
-      status:         'assigned',
-      auto_assigned:  true,
-      timestamp:      admin.firestore.FieldValue.serverTimestamp()
+      issue: bestReport.need_type,
+      people: bestReport.affected_people,
+      details: bestReport.raw_text,
+      status: 'assigned',
+      assigned_to: best.volunteer_id,
+      created_at: admin.firestore.FieldValue.serverTimestamp()
     });
 
     // Mark volunteer unavailable
@@ -764,9 +820,32 @@ async function autoAssignIfUrgent(clusterId) {
       );
 
 // Send WhatsApp notification
+const navLink = `https://www.google.com/maps/dir/?api=1&destination=${bestReport.location_lat},${bestReport.location_lng}`;
+
+// distance + ETA
+let distanceText = '';
+let etaText = '';
+
+if (best.location_lat && best.location_lng) {
+  const distance = calculateDistance(
+    best.location_lat,
+    best.location_lng,
+    bestReport.location_lat,
+    bestReport.location_lng
+  );
+
+  const rounded = Math.round(distance * 10) / 10;
+  const eta = Math.round((distance / 40) * 60);
+
+  distanceText = `📏 Distance: ${rounded} km\n`;
+  etaText = `⏱️ ETA: ~${eta} mins\n`;
+}
+
 await twilio.messages.create({
   body: `🚨 PULSE TASK ASSIGNED
   📍 Location: ${bestReport.location_text}
+  ${distanceText}${etaText}
+  🗺️ Start Navigation: ${navLink}
   ⚠️ Issue: ${bestReport.need_type}
   👥 People affected: ${bestReport.affected_people}
   📝 Details: ${bestReport.summary || 'No extra details'}
@@ -777,11 +856,14 @@ await twilio.messages.create({
 
 // Send SMS notification
 await twilio.messages.create({
-  body: `PULSE TASK:
-  Location: ${bestReport.location_text}
-  Issue: ${bestReport.need_type}
-  People: ${bestReport.affected_people}
-  Reply ACCEPT.`,
+  body: `🚨 PULSE TASK ASSIGNED
+
+📍 Location: ${bestReport.location_text}
+⚠️ Issue: ${bestReport.need_type}
+👥 People affected: ${bestReport.affected_people || 'Unknown'}
+📝 ${bestReport.summary || bestReport.raw_text}
+
+Reply ACCEPT to confirm.`,
   from: process.env.TWILIO_REAL_NUMBER,
   to: best.phone
 });
@@ -795,29 +877,6 @@ await twilio.messages.create({
     console.error('❌ Auto assign failed:', err.message);
   }
 
-  // Get all reports inside this cluster
-  const reportIds = cluster.report_ids || [];
-  
-  if (reportIds.length === 0) {
-    console.log('⚠️ No reports in cluster');
-    return;
-  }
-  
-  // Pick MOST URGENT report
-  let bestReport = null;
-  
-  for (const reportId of reportIds) {
-    const doc = await db.collection('reports').doc(reportId).get();
-    if (!doc.exists) continue;
-    
-    const data = doc.data();
-    
-    if (!bestReport || data.urgency_score > bestReport.urgency_score) {
-      bestReport = { id: doc.id, ...data };
-    }
-  }
-  
-  if (!bestReport) return;
 }
 
 // Volunteer replies ACCEPT or DONE via SMS

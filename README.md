@@ -84,6 +84,51 @@ Built the complete AI brain for PULSE X. Every field report that enters
 the system — WhatsApp, SMS, or manual intake — passes through this layer 
 before anything else happens.
 
+@ random day 1---
+🔧 Updates & Fixes (Today)
+🗺️ Map Fix
+Resolved issues with map rendering and data display. The map now correctly reflects real-time report/cluster data.
+Fixed incorrect/missing markers on the map
+Added blue dots to represent individual reports that are not part of any cluster
+This ensures:
+No report is visually lost
+Both clustered and non-clustered cases are clearly visible
+
+🎬 Demo System Overhaul
+Rebuilt the demo flow to make testing and presentations reliable:
+Added a demo trigger that generates fresh reports every time (food, water, medical)
+Ensured demo data is randomized and realistic
+Implemented a clear demo feature that removes all demo data from:
+Frontend UI
+Firestore database
+Eliminated stale/duplicate demo data issues
+
+📊 Dynamic Dashboard (Navbar Fix)
+Previously, dashboard values (like counts/stats) were hardcoded.
+Now:
+All navbar data is fetched dynamically from backend
+Reflects real-time system state
+Improves accuracy and scalability
+
+📱 Twilio WhatsApp Alert Fix
+Fixed a critical issue where volunteers were receiving incorrect alerts:
+Before:
+Every alert showed "urgent water crisis" regardless of actual issue ❌
+After:
+Alerts now correctly reflect:
+Actual need type (water / food / medical)
+Relevant report-level details
+Ensures volunteers receive accurate and actionable information ✅
+📩 New Message Format
+Volunteers now receive messages in this format:
+🚨 PULSE TASK ASSIGNED
+📍 Location: <Exact Location>
+⚠️ Issue: <Water / Food / Medical>
+👥 People affected: <Number>
+📝 Details: <Summary (if available)>
+Reply ACCEPT to confirm.
+This removes ambiguity and ensures the volunteer knows exactly where to go and what to handle.
+
 # What I Built
 
 # Core AI Pipeline
