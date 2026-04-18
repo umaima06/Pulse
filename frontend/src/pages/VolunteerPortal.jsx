@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { collection, onSnapshot, query, where } from 'firebase/firestore'
+import { collection, onSnapshot, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
 import { doc, updateDoc } from 'firebase/firestore'
@@ -12,19 +12,39 @@ function VolunteerPortal() {
   const [actionLoading, setActionLoading] = useState('')
   const [available, setAvailable] = useState(true)
 
-  const findTasks = () => {
-    if (!phone) return
-    setLoading(true)
-    setSubmitted(true)
-    onSnapshot(
-      query(collection(db, 'tasks'), where('volunteer_phone', '==', phone)),
-      (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        setTasks(data)
-        setLoading(false)
-      }
-    )
+const findTasks = async () => {
+  if (!phone) return
+
+  setLoading(true)
+  setSubmitted(true)
+
+  const q = query(
+    collection(db, 'volunteers'),
+    where('phone', '==', phone)
+  )
+
+  const snap = await getDocs(q)
+
+  if (snap.empty) {
+    alert("Volunteer not found")
+    setLoading(false)
+    return
   }
+
+  const volunteerId = snap.docs[0].id
+
+  onSnapshot(
+    query(collection(db, 'tasks'), where('volunteer_id', '==', volunteerId)),
+    (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      setTasks(data)
+      setLoading(false)
+    }
+  )
+}
 
 const updateTask = async (taskId, status) => {
   setActionLoading(taskId + status)
@@ -37,19 +57,22 @@ const updateTask = async (taskId, status) => {
     })
 
     // 💥 AUTO AVAILABILITY LOGIC
-    if (status === 'accepted') {
-      await updateDoc(doc(db, 'volunteers', phone), {
-        available: false
-      })
-      setAvailable(false)
-    }
+const q = query(
+  collection(db, 'volunteers'),
+  where('phone', '==', phone)
+)
 
-    if (status === 'done') {
-      await updateDoc(doc(db, 'volunteers', phone), {
-        available: true
-      })
-      setAvailable(true)
-    }
+const snap = await getDocs(q)
+
+if (!snap.empty) {
+  const volunteerDoc = snap.docs[0]
+
+  await updateDoc(volunteerDoc.ref, {
+    available: status === 'done'
+  })
+
+  setAvailable(status === 'done')
+}
 
   } catch {
     alert('Could not update task. Make sure backend is running.')
@@ -72,16 +95,38 @@ const updateTask = async (taskId, status) => {
 
 const toggleAvailability = async () => {
   const newStatus = !available
-  setAvailable(newStatus)
 
   try {
-    await updateDoc(doc(db, 'volunteers', phone), {
+    const q = query(
+      collection(db, 'volunteers'),
+      where('phone', '==', phone)
+    )
+
+    const snapshot = await getDocs(q)
+
+    if (snapshot.empty) {
+      alert("Volunteer not found")
+      return
+    }
+
+    const volunteerDoc = snapshot.docs[0]
+
+    await updateDoc(volunteerDoc.ref, {
       available: newStatus
     })
-  } catch {
+
+    // ✅ only update UI AFTER success
+    setAvailable(newStatus)
+
+  } catch (err) {
+    console.error(err)
     alert("Failed to update availability")
   }
 }
+
+console.log("Searching for:", phone)
+
+
   const doneTasks = tasks.filter(t => t.status === 'done')
   const activeTasks = tasks.filter(t => t.status !== 'done')
 

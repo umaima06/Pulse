@@ -508,6 +508,12 @@ function Dashboard() {
                 )}
               </div>
 
+                 {selected.resolution_note && (
+                    <div className="bg-green-900 rounded-lg p-3 mt-2">
+                      <p className="text-green-300 text-xs mb-1">📝 RESOLUTION NOTE</p>
+                      <p className="text-white text-sm">{selected.resolution_note}</p>
+                 </div>
+                )}
               {/* Urgency bar */}
               <div className="mt-4">
                 <p className="text-gray-400 text-xs mb-2">URGENCY LEVEL</p>

@@ -637,6 +637,7 @@ if (!bestReport) {
     const taskRef = await db.collection('tasks').add({
       cluster_id,
       volunteer_id,
+      volunteer_phone: volunteer.phone,
       need_type:      cluster.need_type,
       location_text: bestReport.location_text,
       location_lat: bestReport.location_lat,
@@ -674,10 +675,12 @@ if (volunteer.phone) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-
+const mapsLink = `https://www.google.com/maps/dir/?api=1&destination=${bestReport.location_lat},${bestReport.location_lng}`;
   await twilio.messages.create({
     body: `🚨 PULSE TASK ASSIGNED
 📍 Location: ${bestReport.location_text}
+🗺 Directions: 
+${mapsLink}
 ⚠️ Issue: ${cluster.need_type}
 👥 People affected: ${bestReport.affected_people}
 📝 Details: ${bestReport.summary || 'No extra details'}
@@ -809,12 +812,13 @@ for (const reportId of reportIds) {
 }
 
 if (!bestReport) {
-  return res.status(400).json({ error: "No valid report found in cluster" });
+  console.log("No valid report found in cluster");
 }
     // Create task
     const taskRef = await db.collection('tasks').add({
       cluster_id:     clusterId,
       volunteer_id:   best.volunteer_id,
+      volunteer_phone: best.phone,
       need_type:      cluster.need_type,
       location_text: bestReport.location_text,
       location_lat: bestReport.location_lat,
@@ -851,11 +855,13 @@ if (!bestReport) {
         process.env.TWILIO_ACCOUNT_SID,
         process.env.TWILIO_AUTH_TOKEN
       );
-
+const mapsLink = `https://www.google.com/maps/dir/?api=1&destination=${bestReport.location_lat},${bestReport.location_lng}`;
 // Send WhatsApp notification
 await twilio.messages.create({
   body: `🚨 PULSE TASK ASSIGNED
   📍 Location: ${bestReport.location_text}
+  🗺 Directions: 
+  ${mapsLink}
   ⚠️ Issue: ${bestReport.need_type}
   👥 People affected: ${bestReport.affected_people}
   📝 Details: ${bestReport.summary || 'No extra details'}
@@ -871,6 +877,8 @@ await twilio.messages.create({
 await twilio.messages.create({
   body: `PULSE TASK:
   Location: ${bestReport.location_text}
+  Directions:
+${mapsLink}
   Issue: ${bestReport.need_type}
   People: ${bestReport.affected_people}
   Reply ACCEPT.`,
@@ -1900,6 +1908,7 @@ return res.json({
     res.status(500).json({ reply: "Server error" });
   }
 });
+
 app.post('/reassign', async (req, res) => {
   try {
     const { cluster_id } = req.body;
