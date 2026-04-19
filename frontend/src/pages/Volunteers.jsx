@@ -33,27 +33,27 @@ function Volunteers() {
       <div className="max-w-4xl mx-auto px-6 py-10">
 
         {/* Header */}
-        <h2 className="text-3xl font-bold mb-2">Volunteers</h2>
-        <p className="text-gray-400 mb-8">All registered volunteers</p>
+        <h2 className="text-3xl font-bold mb-2">{t('volunteers')}</h2>
+        <p className="text-gray-400 mb-8">{t('no_volunteers_sub')}</p>
 
         {/* Stats */}
         <div className="flex gap-4 mb-8">
           <div className="bg-emerald-900 px-4 py-3 rounded-lg">
-            <p className="text-emerald-300 text-xs">AVAILABLE</p>
+            <p className="text-emerald-300 text-xs">{t('available')}</p>
             <p className="text-white font-bold text-xl">
               {volunteers.filter(v => v.available !== false).length}
             </p>
           </div>
 
           <div className="bg-red-900 px-4 py-3 rounded-lg">
-            <p className="text-red-300 text-xs">BUSY</p>
+            <p className="text-red-300 text-xs">{t('busy')}</p>
             <p className="text-white font-bold text-xl">
               {volunteers.filter(v => v.available === false).length}
             </p>
           </div>
 
           <div className="bg-gray-700 px-4 py-3 rounded-lg">
-            <p className="text-gray-300 text-xs">TOTAL</p>
+            <p className="text-gray-300 text-xs">{t('total')}</p>
             <p className="text-white font-bold text-xl">
               {volunteers.length}
             </p>
@@ -125,7 +125,7 @@ function Volunteers() {
                         : 'bg-red-500/10 text-red-400 border border-red-500/20'
                     }`}
                   >
-                    {isAvailable ? '🟢 Available' : '🔴 Busy'}
+                    {isAvailable ? `🟢 ${t('available')}` : `🔴 ${t('busy')}`}
                   </span>
                 </div>
               )

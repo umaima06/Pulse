@@ -178,5 +178,22 @@
   "no_response": "कोणताही प्रतिसाद नाही",
   "copy_clipboard": "क्लिपबोर्डवर कॉपी करा",
   "reported_label": "अहवालित",
-  "cluster_label": "क्लस्टर"
+  "cluster_label": "क्लस्टर",
+  "volunteer_portal": "स्वयंसेवक पोर्टल",
+  "enter_whatsapp": "तुमची नियुक्त कामे पाहण्यासाठी WhatsApp नंबर टाका",
+  "whatsapp_number": "तुमचा WhatsApp नंबर",
+  "phone_placeholder": "+91 9876543210",
+  "find": "शोधा →",
+  "search_again": "← पुन्हा शोधा",
+  "status": "स्थिती",
+  "on_duty": "🟢 ड्युटीवर",
+  "off_duty": "🔴 ड्युटीबाहेर",
+  "no_tasks_found": "कोणतीही कामे सापडली नाहीत",
+  "no_tasks_for_phone": "या नंबरसाठी कामे नाहीत",
+  "active_tasks": "सक्रिय कामे",
+  "task_history": "कामांचा इतिहास",
+  "accept_task": "✅ काम स्वीकारा",
+  "mark_done": "🎉 पूर्ण झाले",
+  "crisis_task": "संकट प्रतिसाद काम",
+  "update_error": "काम अपडेट होऊ शकले नाही. पुन्हा प्रयत्न करा."
 }

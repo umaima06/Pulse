@@ -178,5 +178,22 @@
   "no_response": "কোনো প্রতিক্রিয়া নেই",
   "copy_clipboard": "ক্লিপবোর্ডে কপি করুন",
   "reported_label": "রিপোর্ট করা হয়েছে",
-  "cluster_label": "ক্লাস্টার"
+  "cluster_label": "ক্লাস্টার",
+    "volunteer_portal": "স্বেচ্ছাসেবক পোর্টাল",
+  "enter_whatsapp": "আপনার WhatsApp নম্বর দিন যাতে আপনার কাজ দেখা যায়",
+  "whatsapp_number": "আপনার WhatsApp নম্বর",
+  "phone_placeholder": "+91 9876543210",
+  "find": "খুঁজুন →",
+  "search_again": "← আবার খুঁজুন",
+  "status": "অবস্থা",
+  "on_duty": "🟢 ডিউটিতে",
+  "off_duty": "🔴 ডিউটির বাইরে",
+  "no_tasks_found": "কোন কাজ পাওয়া যায়নি",
+  "no_tasks_for_phone": "এই নম্বরে কোন কাজ নেই",
+  "active_tasks": "সক্রিয় কাজ",
+  "task_history": "কাজের ইতিহাস",
+  "accept_task": "✅ কাজ গ্রহণ করুন",
+  "mark_done": "🎉 সম্পন্ন করুন",
+  "crisis_task": "সংকট প্রতিক্রিয়া কাজ",
+  "update_error": "কাজ আপডেট করা যায়নি। আবার চেষ্টা করুন।"
 }

@@ -82,10 +82,10 @@ function Tasks() {
         <div className="grid grid-cols-4 gap-4 mb-10">
 
           {[
-            { label: 'PENDING', value: tasks.filter(t => t.status === 'pending').length, color: 'yellow' },
-            { label: 'ACCEPTED', value: tasks.filter(t => t.status === 'accepted').length, color: 'blue' },
-            { label: 'DONE', value: tasks.filter(t => t.status === 'done').length, color: 'emerald' },
-            { label: 'TOTAL', value: tasks.length, color: 'gray' }
+            { label: t('pending'), value: tasks.filter(t => t.status === 'pending').length },
+            { label: t('accepted'), value: tasks.filter(t => t.status === 'accepted').length },
+            { label: t('done'), value: tasks.filter(t => t.status === 'done').length },
+            { label: t('total'), value: tasks.length }
           ].map(s => (
             <div
               key={s.label}
@@ -121,7 +121,6 @@ function Tasks() {
                   className={`bg-gradient-to-r from-gray-900/80 to-gray-800/50 border ${cfg.border} rounded-2xl p-5 flex items-center justify-between hover:scale-[1.01] transition-all ${cfg.glow}`}
                 >
 
-                  {/* Left */}
                   <div className="flex items-center gap-4">
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${cfg.style}`}>
                       {cfg.icon}
@@ -129,11 +128,11 @@ function Tasks() {
 
                     <div>
                       <p className="font-bold">
-                        {task.volunteer_name || 'Volunteer'}
+                        {task.volunteer_name || t('volunteer')}
                       </p>
 
                       <p className="text-gray-500 text-xs">
-                        Cluster: {task.cluster_id}
+                        {t('cluster_label')}: {task.cluster_id}
                       </p>
 
                       {task.need_type && (
@@ -144,9 +143,8 @@ function Tasks() {
                     </div>
                   </div>
 
-                  {/* Status */}
                   <span className={`px-4 py-2 rounded-xl text-xs font-bold uppercase ${cfg.style}`}>
-                    {task.status || 'pending'}
+                    {task.status || t('pending')}
                   </span>
 
                 </div>

@@ -244,5 +244,22 @@
   "no_response": "ప్రతిస్పందన లేదు",
   "copy_clipboard": "క్లిప్‌బోర్డ్‌కు కాపీ చేయండి",
   "reported_label": "రిపోర్ట్ చేయబడింది",
-  "cluster_label": "క్లస్టర్"
+  "cluster_label": "క్లస్టర్",
+    "volunteer_portal": "స్వచ్ఛంద సేవకుల పోర్టల్",
+  "enter_whatsapp": "మీకు కేటాయించిన పనులను చూడడానికి WhatsApp నంబర్ నమోదు చేయండి",
+  "whatsapp_number": "మీ WhatsApp నంబర్",
+  "phone_placeholder": "+91 9876543210",
+  "find": "వెతుకు →",
+  "search_again": "← మళ్లీ వెతుకు",
+  "status": "స్థితి",
+  "on_duty": "🟢 విధిలో ఉన్నారు",
+  "off_duty": "🔴 విధి నుండి బయట",
+  "no_tasks_found": "పనులు కనుగొనబడలేదు",
+  "no_tasks_for_phone": "ఈ నంబర్‌కు పనులు లేవు",
+  "active_tasks": "సక్రియ పనులు",
+  "task_history": "పని చరిత్ర",
+  "accept_task": "✅ పనిని స్వీకరించండి",
+  "mark_done": "🎉 పూర్తయింది",
+  "crisis_task": "సంక్షోభ ప్రతిస్పందన పని",
+  "update_error": "పని అప్డేట్ చేయలేకపోయాం. మళ్లీ ప్రయత్నించండి."
 }

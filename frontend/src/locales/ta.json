@@ -244,5 +244,22 @@
   "no_response": "பதில் இல்லை",
   "copy_clipboard": "கிளிப்போர்டுக்கு நகலெடுக்கவும்",
   "reported_label": "அறிக்கையிடப்பட்டது",
-  "cluster_label": "கிளஸ்டர்"
+  "cluster_label": "கிளஸ்டர்",
+    "volunteer_portal": "தன்னார்வலர் போர்டல்",
+  "enter_whatsapp": "உங்களுக்கு ஒதுக்கப்பட்ட பணிகளை பார்க்க உங்கள் WhatsApp எண்ணை உள்ளிடவும்",
+  "whatsapp_number": "உங்கள் WhatsApp எண்",
+  "phone_placeholder": "+91 9876543210",
+  "find": "கண்டுபிடி →",
+  "search_again": "← மீண்டும் தேடு",
+  "status": "நிலை",
+  "on_duty": "🟢 பணியில்",
+  "off_duty": "🔴 பணியிலில்லை",
+  "no_tasks_found": "பணிகள் இல்லை",
+  "no_tasks_for_phone": "இந்த எண்ணுக்கு பணிகள் ஒதுக்கப்படவில்லை",
+  "active_tasks": "செயலில் உள்ள பணிகள்",
+  "task_history": "பணி வரலாறு",
+  "accept_task": "✅ பணியை ஏற்கவும்",
+  "mark_done": "🎉 முடிந்தது",
+  "crisis_task": "அவசர எதிர்வினை பணி",
+  "update_error": "பணியை புதுப்பிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்."
 }

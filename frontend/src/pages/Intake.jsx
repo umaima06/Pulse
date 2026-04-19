@@ -118,55 +118,47 @@ function Intake() {
 
       <div className="max-w-lg mx-auto px-6 py-10">
 
-        {/* Header (NEW UI kept) */}
         <div className="mb-10">
           <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs px-4 py-2 rounded-full mb-5 font-semibold tracking-widest uppercase">
             <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse inline-block"></span>
-            Manual Intake
+            {t('intake')}
           </div>
+
           <h2 className="text-5xl font-black mb-3 bg-gradient-to-r from-white via-emerald-100 to-emerald-400 bg-clip-text text-transparent">
-            Report Intake
+            {t('intake_title')}
           </h2>
+
           <p className="text-gray-500 text-sm">
-            NGO coordinator can directly log a crisis report
+            {t('intake_sub')}
           </p>
         </div>
 
-        {/* SUCCESS (merged both designs) */}
         {status === 'success' && result && (
           <div className="bg-gradient-to-br from-emerald-950/80 to-emerald-900/40 border border-emerald-500/30 rounded-2xl p-6 mb-8">
             <p className="text-emerald-400 font-bold mb-4">
-              {t('report_saved') || 'Report analyzed and saved'}
+              {t('report_saved')}
             </p>
 
             <div className="space-y-2 text-sm">
-              <p>Need: <span className="font-semibold capitalize">{result.need_type}</span></p>
-              <p>
-                Urgency: <span className="font-bold">
-                  {result.urgency_score}/100 ({result.urgency_raw})
-                </span>
-              </p>
-              <p>
-                Location: {result.location} {result.coords_found ? '📍' : '⚠️'}
-              </p>
+              <p>{t('need_label')} <span className="font-semibold capitalize">{result.need_type}</span></p>
+              <p>{t('urgency_label')} <span className="font-bold">{result.urgency_score}/100</span></p>
+              <p>{result.location} {result.coords_found ? '📍' : '⚠️'}</p>
               <p className="text-gray-500 italic">{result.summary}</p>
             </div>
           </div>
         )}
 
-        {/* ERROR (merged) */}
         {status === 'error' && (
           <div className="bg-red-900/40 border border-red-500/30 rounded-2xl p-5 mb-8">
             <p className="text-red-400 font-medium text-sm">
-              Report failed / check AI server / fill fields properly
+              {t('report_failed')}
             </p>
           </div>
         )}
 
-        {/* Need Type */}
         <div className="mb-6">
           <label className="text-gray-400 text-xs font-bold uppercase mb-3 block">
-            Need Type
+            {t('need_type')}
           </label>
 
           <div className="flex gap-2">
@@ -186,31 +178,28 @@ function Intake() {
           </div>
         </div>
 
-        {/* Location */}
         <input
           type="text"
           value={form.location}
           onChange={e => setForm({ ...form, location: e.target.value })}
-          placeholder="Location"
+          placeholder={t('location_placeholder')}
           className="w-full mb-4 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white"
         />
 
-        {/* Message */}
         <textarea
           value={form.message}
           onChange={e => setForm({ ...form, message: e.target.value })}
-          placeholder="Report message..."
+          placeholder={t('report_placeholder')}
           rows={5}
           className="w-full mb-6 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white"
         />
 
-        {/* Submit */}
         <button
           onClick={handleSubmit}
           disabled={loading}
           className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl"
         >
-          {loading ? 'Analyzing...' : 'Submit Report'}
+          {loading ? t('analyzing') : t('submit_report')}
         </button>
 
       </div>

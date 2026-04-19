@@ -178,5 +178,22 @@
   "no_response": "کوئی جواب نہیں",
   "copy_clipboard": "کلپ بورڈ پر کاپی کریں",
   "reported_label": "رپورٹ کیا گیا",
-  "cluster_label": "کلسٹر"
+  "cluster_label": "کلسٹر",
+    "volunteer_portal": "رضاکار پورٹل",
+  "enter_whatsapp": "اپنا WhatsApp نمبر درج کریں تاکہ آپ کو دیے گئے کام نظر آئیں",
+  "whatsapp_number": "آپ کا WhatsApp نمبر",
+  "phone_placeholder": "+91 9876543210",
+  "find": "تلاش کریں →",
+  "search_again": "← دوبارہ تلاش کریں",
+  "status": "حالت",
+  "on_duty": "🟢 ڈیوٹی پر",
+  "off_duty": "🔴 ڈیوٹی سے باہر",
+  "no_tasks_found": "کوئی کام نہیں ملا",
+  "no_tasks_for_phone": "اس نمبر پر کوئی کام نہیں ہے",
+  "active_tasks": "فعال کام",
+  "task_history": "کام کی تاریخ",
+  "accept_task": "✅ کام قبول کریں",
+  "mark_done": "🎉 مکمل کریں",
+  "crisis_task": "بحران ردعمل کام",
+  "update_error": "کام اپڈیٹ نہیں ہو سکا۔ دوبارہ کوشش کریں۔"
 }
