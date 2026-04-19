@@ -1,25 +1,29 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 function Landing() {
 
-  // ─── LEVEL 7+8: Live counters ───────────────────────────────────────────────
-  const [people, setPeople]       = useState(0)
+  // ─── Live counters ───────────────────────────────────────────────────────────
+  const [people, setPeople]         = useState(0)
   const [volunteers, setVolunteers] = useState(0)
-  const [resolved, setResolved]   = useState(0)
+  const [resolved, setResolved]     = useState(0)
 
-  // ─── LEVEL 7+8: Live events feed ────────────────────────────────────────────
+  // ─── Live events feed ────────────────────────────────────────────────────────
   const [events, setEvents] = useState([])
 
-  // ─── LEVEL 9+10: Voice AI simulation ────────────────────────────────────────
+  // ─── Voice AI simulation ─────────────────────────────────────────────────────
   const [callActive, setCallActive] = useState(false)
-  const [callText, setCallText]     = useState("")
+  const [callText, setCallText]     = useState('')
 
-  // ─── LEVEL 9+10: WhatsApp chat simulation ───────────────────────────────────
+  // ─── WhatsApp chat simulation ────────────────────────────────────────────────
   const [chat, setChat] = useState([])
 
-  // ─── Live counter effect ─────────────────────────────────────────────────────
+  const { t } = useTranslation()
+
+  // ─── Live counter effect ──────────────────────────────────────────────────────
   useEffect(() => {
     let p = 0, v = 0, r = 0
     const interval = setInterval(() => {
@@ -33,14 +37,14 @@ function Landing() {
     return () => clearInterval(interval)
   }, [])
 
-  // ─── Live events feed effect ─────────────────────────────────────────────────
+  // ─── Live events feed effect ──────────────────────────────────────────────────
   useEffect(() => {
     const messages = [
-      "Flood alert detected in Hyderabad",
-      "Food request processed in Mumbai",
-      "Medical emergency flagged in Delhi",
-      "Volunteer dispatched in Bangalore",
-      "New crisis cluster formed in Chennai"
+      'Flood alert detected in Hyderabad',
+      'Food request processed in Mumbai',
+      'Medical emergency flagged in Delhi',
+      'Volunteer dispatched in Bangalore',
+      'New crisis cluster formed in Chennai',
     ]
     const interval = setInterval(() => {
       const newEvent = messages[Math.floor(Math.random() * messages.length)]
@@ -49,13 +53,13 @@ function Landing() {
     return () => clearInterval(interval)
   }, [])
 
-  // ─── WhatsApp simulation effect ──────────────────────────────────────────────
+  // ─── WhatsApp simulation effect ───────────────────────────────────────────────
   useEffect(() => {
     const msgs = [
-      "Need food in Secunderabad",
-      "Water rising rapidly here",
-      "Medical help required urgently",
-      "Children stranded in area"
+      'Need food in Secunderabad',
+      'Water rising rapidly here',
+      'Medical help required urgently',
+      'Children stranded in area',
     ]
     const interval = setInterval(() => {
       const msg = msgs[Math.floor(Math.random() * msgs.length)]
@@ -64,16 +68,16 @@ function Landing() {
     return () => clearInterval(interval)
   }, [])
 
-  // ─── Voice AI simulation ─────────────────────────────────────────────────────
+  // ─── Voice AI simulation ──────────────────────────────────────────────────────
   const startCall = () => {
     setCallActive(true)
     const script = [
-      "📞 Connecting to PULSE AI...",
-      "🎤 Listening...",
-      "🧠 Analyzing voice input...",
-      "🚨 Flood emergency detected",
-      "📍 Location identified: Hyderabad",
-      "🚀 Dispatching volunteer..."
+      '📞 Connecting to PULSE AI...',
+      '🎤 Listening...',
+      '🧠 Analyzing voice input...',
+      '🚨 Flood emergency detected',
+      '📍 Location identified: Hyderabad',
+      '🚀 Dispatching volunteer...',
     ]
     let i = 0
     const interval = setInterval(() => {
@@ -88,14 +92,21 @@ function Landing() {
 
       {/* ── Navbar ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-8 py-5 border-b border-white/10">
-        <h1 className="text-2xl font-bold text-emerald-400">⚡ PULSE</h1>
-        <div className="flex gap-4">
-          <Link to="/get-started" className="text-gray-300 hover:text-white text-sm px-4 py-2 transition-colors">Login</Link>
+        <h1 className="text-2xl font-bold text-emerald-400">⚡ {t('brand')}</h1>
+        <div className="flex items-center gap-4">
+          {/* Language switcher lives here in the nav */}
+          <LanguageSwitcher />
+          <Link
+            to="/get-started"
+            className="text-gray-300 hover:text-white text-sm px-4 py-2 transition-colors"
+          >
+            {t('nav_login')}
+          </Link>
           <Link
             to="/get-started"
             className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 active:scale-95"
           >
-            Get Started →
+            {t('nav_get_started')}
           </Link>
         </div>
       </div>
@@ -109,58 +120,56 @@ function Landing() {
       >
         <div className="inline-flex items-center gap-2 bg-red-900/50 border border-red-700 text-red-300 text-xs px-4 py-2 rounded-full mb-8 font-medium">
           <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse inline-block"></span>
-          LIVE — AI monitoring 1,284+ signals across India
+          {t('hero_badge')}
         </div>
 
         <div className="relative">
-          {/* LEVEL 8: pulse-bg glow */}
           <div className="absolute inset-0 bg-emerald-500 opacity-20 blur-3xl pointer-events-none pulse-bg"></div>
           <div className="relative z-10">
             <h2 className="text-5xl md:text-6xl font-black mb-6 leading-tight">
-              Crisis Response,<br />
-              <span className="text-emerald-400">Powered by AI</span>
+              {t('hero_title1')}<br />
+              <span className="text-emerald-400">{t('hero_title2')}</span>
             </h2>
           </div>
         </div>
 
         <p className="text-gray-400 mt-2 flex items-center justify-center gap-1 mb-4">
-          AI analyzing incoming reports
+          {t('hero_sub')}
           <span className="dot">.</span>
           <span className="dot">.</span>
           <span className="dot">.</span>
         </p>
 
         <p className="typing text-gray-400 text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
-          PULSE collects scattered community data, identifies urgent needs, and dispatches help instantly...
+          {t('hero_desc')}
         </p>
 
-        {/* LEVEL 9+10: real-time sub-label */}
-        <p className="text-xs text-gray-500 mb-6">System updating in real-time...</p>
+        <p className="text-xs text-gray-500 mb-6">{t('hero_realtime')}</p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={startCall}
             className="bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-600 hover:to-green-500 shadow-[0_0_25px_rgba(16,185,129,0.5)] text-white font-bold px-8 py-4 rounded-xl text-lg transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
           >
-            📞 Emergency Call (IVR Simulation)
+            {t('ivr_btn')}
           </button>
 
           <Link
             to="/get-started"
             className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-4 rounded-xl text-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center"
           >
-            Get Started →
+            {t('nav_get_started')}
           </Link>
 
           <button
             onClick={() => document.getElementById('how').scrollIntoView({ behavior: 'smooth' })}
             className="border border-gray-600 hover:border-orange-400 text-gray-300 hover:text-white font-medium px-8 py-4 rounded-xl text-lg transition-all flex items-center justify-center hover:scale-105 active:scale-95 cursor-pointer"
           >
-            How it works
+            {t('how_btn')}
           </button>
         </div>
 
-        {/* LEVEL 9: Voice AI UI */}
+        {/* Voice AI UI */}
         {callActive && (
           <div className="mt-8 bg-black/40 border border-emerald-500 rounded-xl p-4 text-center animate-fadeIn">
             <p className="text-emerald-400 font-medium">{callText}</p>
@@ -171,9 +180,8 @@ function Landing() {
       {/* ── Live Crisis Map Preview ─────────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-8 mt-4">
         <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-          <p className="text-sm text-gray-400 mb-2">Live Crisis Map Preview</p>
+          <p className="text-sm text-gray-400 mb-2">{t('map_preview')}</p>
 
-          {/* LEVEL 7: Map pings */}
           <div className="h-48 bg-black rounded-lg relative overflow-hidden">
             <div className="absolute w-3 h-3 bg-emerald-400 rounded-full top-10 left-10 animate-ping"></div>
             <div className="absolute w-3 h-3 bg-red-400 rounded-full top-20 right-20 animate-ping"></div>
@@ -181,18 +189,18 @@ function Landing() {
             <div className="absolute w-3 h-3 bg-blue-400 rounded-full top-16 left-1/2 animate-ping"></div>
             <div className="absolute w-3 h-3 bg-orange-400 rounded-full bottom-12 right-12 animate-ping"></div>
             <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
-              🌍 AI tracking live crisis signals...
+              {t('map_tracking')}
             </div>
             <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">
-              Live crisis cluster forming...
+              {t('map_cluster')}
             </p>
           </div>
 
-          {/* LEVEL 7: Live activity feed */}
+          {/* Live activity feed */}
           <div className="mt-6 bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-4">
-            <p className="text-sm text-gray-400 mb-3">Live Activity</p>
+            <p className="text-sm text-gray-400 mb-3">{t('live_activity')}</p>
             {events.length === 0 && (
-              <p className="text-xs text-gray-600">Waiting for signals...</p>
+              <p className="text-xs text-gray-600">{t('waiting_signals')}</p>
             )}
             {events.map((e, i) => (
               <p key={i} className="text-xs text-emerald-400 animate-fadeIn mb-1">
@@ -203,12 +211,12 @@ function Landing() {
         </div>
       </div>
 
-      {/* ── LEVEL 9: WhatsApp Simulation ───────────────────────────────────── */}
+      {/* ── WhatsApp Simulation ─────────────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-8 mt-8">
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all duration-300">
-          <p className="text-sm text-gray-400 mb-3">Incoming WhatsApp Reports</p>
+          <p className="text-sm text-gray-400 mb-3">{t('whatsapp_incoming')}</p>
           {chat.length === 0 && (
-            <p className="text-xs text-gray-600">Listening for field reports...</p>
+            <p className="text-xs text-gray-600">{t('whatsapp_listening')}</p>
           )}
           {chat.map((msg, i) => (
             <div
@@ -230,13 +238,11 @@ function Landing() {
         viewport={{ once: true }}
       >
         <h3 className="text-3xl md:text-4xl font-bold mb-6">
-          When crisis hits, response is
-          <span className="text-red-400"> slow, scattered, and chaotic</span>
+          {t('problem_title1')}
+          <span className="text-red-400"> {t('problem_title2')}</span>
         </h3>
         <p className="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
-          Field workers send messages. NGOs scramble to respond.
-          Critical needs get buried. Lives are lost — not due to lack of help,
-          but lack of coordination.
+          {t('problem_desc')}
         </p>
       </motion.div>
 
@@ -249,14 +255,12 @@ function Landing() {
         viewport={{ once: true }}
       >
         <h3 className="text-4xl font-black">
-          So we built <span className="text-emerald-400">PULSE</span>
+          {t('built_title')} <span className="text-emerald-400">{t('brand')}</span>
         </h3>
-        <p className="text-gray-400 mt-4">
-          An AI system that turns chaos into coordinated action — instantly
-        </p>
+        <p className="text-gray-400 mt-4">{t('built_sub')}</p>
       </motion.div>
 
-      {/* ── LEVEL 7+8: Live Impact Counter ─────────────────────────────────── */}
+      {/* ── Live Impact Counter ─────────────────────────────────────────────── */}
       <motion.div
         className="max-w-4xl mx-auto px-8 pb-16"
         initial={{ opacity: 0, y: 40 }}
@@ -267,27 +271,21 @@ function Landing() {
         <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]">
           <div className="flex items-center justify-center gap-2 mb-8">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-            <p className="text-gray-300 text-sm font-medium">LIVE IMPACT — Updated in real time</p>
+            <p className="text-gray-300 text-sm font-medium">{t('live_impact')}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
             <div>
-              <p className="text-5xl font-black text-emerald-400">
-                {people.toLocaleString()}
-              </p>
-              <p className="text-gray-400 mt-2 text-sm">People reached</p>
+              <p className="text-5xl font-black text-emerald-400">{people.toLocaleString()}</p>
+              <p className="text-gray-400 mt-2 text-sm">{t('people_reached')}</p>
             </div>
             <div>
-              <p className="text-5xl font-black text-green-400">
-                {volunteers}
-              </p>
-              <p className="text-gray-400 mt-2 text-sm">Volunteers deployed</p>
+              <p className="text-5xl font-black text-green-400">{volunteers}</p>
+              <p className="text-gray-400 mt-2 text-sm">{t('volunteers_deployed')}</p>
             </div>
             <div>
-              <p className="text-5xl font-black text-blue-400">
-                {resolved}
-              </p>
-              <p className="text-gray-400 mt-2 text-sm">Crises resolved</p>
+              <p className="text-5xl font-black text-blue-400">{resolved}</p>
+              <p className="text-gray-400 mt-2 text-sm">{t('crises_resolved')}</p>
             </div>
           </div>
         </div>
@@ -297,16 +295,16 @@ function Landing() {
       <div className="max-w-4xl mx-auto px-8 pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[
-            { value: '30s', label: 'WhatsApp → Crisis Alert' },
-            { value: '100%', label: 'Auto volunteer matching' },
-            { value: '0',   label: 'Manual coordination needed' },
+            { value: '30s',  labelKey: 'stat1_label' },
+            { value: '100%', labelKey: 'stat2_label' },
+            { value: '0',    labelKey: 'stat3_label' },
           ].map(stat => (
             <div
-              key={stat.label}
+              key={stat.labelKey}
               className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center hover:border-orange-500/50 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] cursor-pointer active:scale-95"
             >
               <p className="text-4xl font-black text-emerald-400">{stat.value}</p>
-              <p className="text-gray-400 mt-2 text-sm">{stat.label}</p>
+              <p className="text-gray-400 mt-2 text-sm">{t(stat.labelKey)}</p>
             </div>
           ))}
         </div>
@@ -321,30 +319,27 @@ function Landing() {
         transition={{ duration: 0.6 }}
         viewport={{ once: true }}
       >
-        <h3 className="text-3xl font-bold text-center mb-4">How PULSE Works</h3>
-        <p className="text-gray-400 text-center mb-12">From WhatsApp message to volunteer deployed in under 60 seconds</p>
+        <h3 className="text-3xl font-bold text-center mb-4">{t('how_title')}</h3>
+        <p className="text-gray-400 text-center mb-12">{t('how_sub')}</p>
 
-        {/* LEVEL 9: pipeline flow animation wrapper */}
         <div className="space-y-6 relative">
           {[
-            { step: '01', title: 'Field worker sends WhatsApp', desc: 'Any language, voice or text — PULSE understands it all', icon: '📱', color: 'border-blue-700' },
-            { step: '02', title: 'AI analyzes and scores urgency', desc: 'Groq AI extracts need type, location, urgency score in seconds', icon: '🤖', color: 'border-purple-700' },
-            { step: '03', title: 'Reports cluster automatically', desc: 'Nearby same-type reports group into one crisis cluster on the map', icon: '📍', color: 'border-orange-700' },
-            { step: '04', title: 'Volunteer auto-dispatched', desc: 'Best matching volunteer gets WhatsApp + SMS notification instantly', icon: '🚀', color: 'border-green-700' },
+            { step: '01', titleKey: 'step1_title', descKey: 'step1_desc', icon: '📱', color: 'border-blue-700' },
+            { step: '02', titleKey: 'step2_title', descKey: 'step2_desc', icon: '🤖', color: 'border-purple-700' },
+            { step: '03', titleKey: 'step3_title', descKey: 'step3_desc', icon: '📍', color: 'border-orange-700' },
+            { step: '04', titleKey: 'step4_title', descKey: 'step4_desc', icon: '🚀', color: 'border-green-700' },
           ].map(item => (
             <div
               key={item.step}
               className={`relative bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-5 flex items-center gap-5 border-l-4 ${item.color} hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] cursor-pointer active:scale-95`}
             >
-              {/* LEVEL 9: pipeline flow line */}
               <div className="absolute left-6 top-0 bottom-0 w-px bg-gradient-to-b from-emerald-400 via-gray-700 to-transparent animate-pulse"></div>
-              {/* LEVEL 9: data-flow indicator dot */}
               <div className="absolute left-5 top-5 w-3 h-3 bg-emerald-400 rounded-full animate-bounce"></div>
               <div className="absolute inset-0 rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent pointer-events-none"></div>
               <span className="text-3xl">{item.icon}</span>
               <div className="flex-1">
-                <p className="text-white font-bold">{item.title}</p>
-                <p className="text-gray-400 text-sm mt-1">{item.desc}</p>
+                <p className="text-white font-bold">{t(item.titleKey)}</p>
+                <p className="text-gray-400 text-sm mt-1">{t(item.descKey)}</p>
               </div>
               <span className="text-emerald-400 font-black text-2xl opacity-50">{item.step}</span>
             </div>
@@ -360,50 +355,47 @@ function Landing() {
         transition={{ duration: 0.6 }}
         viewport={{ once: true }}
       >
-        <h3 className="text-3xl font-bold text-center mb-12">Why PULSE is different</h3>
+        <h3 className="text-3xl font-bold text-center mb-12">{t('why_title')}</h3>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { title: "AI-first", desc: "Understands natural language, urgency, and location instantly" },
-            { title: "Real-time", desc: "No dashboards to refresh — everything updates live" },
-            { title: "Zero coordination", desc: "Volunteers are matched and deployed automatically" }
+            { titleKey: 'why1_title', descKey: 'why1_desc' },
+            { titleKey: 'why2_title', descKey: 'why2_desc' },
+            { titleKey: 'why3_title', descKey: 'why3_desc' },
           ].map(item => (
             <div
-              key={item.title}
+              key={item.titleKey}
               className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] cursor-pointer active:scale-95"
             >
-              <p className="text-emerald-400 font-bold mb-2">{item.title}</p>
-              <p className="text-gray-400 text-sm">{item.desc}</p>
+              <p className="text-emerald-400 font-bold mb-2">{t(item.titleKey)}</p>
+              <p className="text-gray-400 text-sm">{t(item.descKey)}</p>
             </div>
           ))}
         </div>
       </motion.div>
 
-      {/* ── LEVEL 10: Command Center Panel ──────────────────────────────────── */}
+      {/* ── Command Center Panel ─────────────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-8 pb-24">
         <div className="bg-black/40 border border-white/10 rounded-2xl p-6 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all duration-300">
           <div className="flex items-center gap-2 mb-4">
             <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-            <p className="text-gray-400 text-sm">Command Center — Live</p>
+            <p className="text-gray-400 text-sm">{t('cmd_live')}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="glass rounded-xl p-4 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
-              <p className="text-gray-400">Active Signals</p>
+              <p className="text-gray-400">{t('cmd_signals')}</p>
               <p className="text-emerald-400 text-2xl font-bold">{people.toLocaleString()}</p>
             </div>
-
             <div className="glass rounded-xl p-4 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
-              <p className="text-gray-400">AI Decisions</p>
+              <p className="text-gray-400">{t('cmd_ai')}</p>
               <p className="text-purple-400 text-2xl font-bold">{resolved}</p>
             </div>
-
             <div className="glass rounded-xl p-4 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
-              <p className="text-gray-400">Volunteers Live</p>
+              <p className="text-gray-400">{t('cmd_volunteers')}</p>
               <p className="text-green-400 text-2xl font-bold">{volunteers}</p>
             </div>
-
             <div className="glass rounded-xl p-4 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
-              <p className="text-gray-400">Avg Response Time</p>
+              <p className="text-gray-400">{t('cmd_response')}</p>
               <p className="text-yellow-400 text-2xl font-bold">~32s</p>
             </div>
           </div>
@@ -413,20 +405,20 @@ function Landing() {
       {/* ── CTA ─────────────────────────────────────────────────────────────── */}
       <div className="max-w-4xl mx-auto px-8 pb-24">
         <div className="bg-gradient-to-r from-orange-900 to-red-900 rounded-2xl p-10 text-center border border-orange-700/50 hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300">
-          <h3 className="text-3xl font-bold mb-4">Ready to respond faster?</h3>
-          <p className="text-gray-300 mb-6">Join NGOs using PULSE to save lives with AI</p>
+          <h3 className="text-3xl font-bold mb-4">{t('cta_title')}</h3>
+          <p className="text-gray-300 mb-6">{t('cta_sub')}</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/get-started"
               className="bg-white text-gray-900 font-bold px-8 py-3 rounded-xl hover:bg-gray-100 transition-all inline-block hover:scale-105 active:scale-95"
             >
-              Get Started Free →
+              {t('cta_btn1')}
             </Link>
             <Link
               to="/get-started"
               className="border border-gray-600 hover:border-orange-400 text-gray-300 hover:text-white font-medium px-8 py-3 rounded-xl text-lg transition-all inline-block hover:scale-105 active:scale-95"
             >
-              Join as Volunteer
+              {t('cta_btn2')}
             </Link>
           </div>
         </div>
@@ -434,7 +426,7 @@ function Landing() {
 
       {/* ── Footer ──────────────────────────────────────────────────────────── */}
       <div className="border-t border-white/10 px-8 py-6 text-center">
-        <p className="text-gray-500 text-sm">⚡ PULSE — Built for NGOs. Powered by AI. Built with Google Firebase + Groq.</p>
+        <p className="text-gray-500 text-sm">{t('footer')}</p>
       </div>
 
     </div>

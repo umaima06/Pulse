@@ -3,8 +3,10 @@ import { useState, useEffect } from 'react'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
+import { useTranslation } from 'react-i18next'
 
 function Intake() {
+  const { t } = useTranslation()
   const [form, setForm] = useState({
     message: '', location: '', need_type: ''
   })
@@ -23,10 +25,8 @@ function Intake() {
     setResult(null)
 
     try {
-      // Build the full text for AI analysis
       const fullText = `${form.need_type ? form.need_type + ': ' : ''}${form.message}. Location: ${form.location}`
 
-      // Step 1 — Call your Python AI server
       const aiRes = await fetch('http://localhost:5000/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -43,7 +43,6 @@ function Intake() {
       const d = aiData.data
       const coords = d.coordinates || {}
 
-      // Step 2 — Save enriched report directly to Firestore
       await addDoc(collection(db, 'reports'), {
         raw_text:        fullText,
         sender:          'NGO_DIRECT',
@@ -65,7 +64,6 @@ function Intake() {
         analyzed_at:     serverTimestamp()
       })
 
-      // Step 3 — Show result to coordinator
       setResult({
         need_type:     d.need_type,
         urgency_score: d.urgency_score,
@@ -85,53 +83,55 @@ function Intake() {
 
     setLoading(false)
   }
-useEffect(() => {
-  const params = new URLSearchParams(locationHook.search)
-  const msg = params.get("msg")
 
-  if (msg) {
-    let detectedType = ""
+  useEffect(() => {
+    const params = new URLSearchParams(locationHook.search)
+    const msg = params.get("msg")
 
-    if (msg.toLowerCase().includes("water") || msg.includes("paani")) {
-      detectedType = "water"
-    } else if (msg.toLowerCase().includes("food") || msg.includes("khana")) {
-      detectedType = "food"
-    } else if (msg.toLowerCase().includes("medical") || msg.includes("bimaar")) {
-      detectedType = "medical"
+    if (msg) {
+      let detectedType = ""
+
+      if (msg.toLowerCase().includes("water") || msg.includes("paani")) {
+        detectedType = "water"
+      } else if (msg.toLowerCase().includes("food") || msg.includes("khana")) {
+        detectedType = "food"
+      } else if (msg.toLowerCase().includes("medical") || msg.includes("bimaar")) {
+        detectedType = "medical"
+      }
+
+      setForm(prev => ({
+        ...prev,
+        message: msg,
+        need_type: detectedType
+      }))
     }
+  }, [])
 
-    setForm(prev => ({
-      ...prev,
-      message: msg,
-      need_type: detectedType
-    }))
-  }
-}, [])
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Navbar />
       <div className="max-w-lg mx-auto px-6 py-10">
-        <h2 className="text-3xl font-bold mb-2">Manual Report Intake</h2>
-        <p className="text-gray-400 mb-8">NGO coordinator can directly log a crisis report</p>
+        <h2 className="text-3xl font-bold mb-2">{t('intake_title')}</h2>
+        <p className="text-gray-400 mb-8">{t('intake_sub')}</p>
 
         {/* Success State */}
         {status === 'success' && result && (
           <div className="bg-green-900 border border-green-500 rounded-lg p-5 mb-6">
-            <p className="text-green-300 font-bold mb-3">✅ Report analyzed and saved</p>
+            <p className="text-green-300 font-bold mb-3">✅ {t('report_saved')}</p>
             <div className="space-y-1 text-sm">
               <p className="text-gray-300">
-                <span className="text-gray-500">Need: </span>
+                <span className="text-gray-500">{t('need_label')} </span>
                 <span className="capitalize font-medium">{result.need_type}</span>
               </p>
               <p className="text-gray-300">
-                <span className="text-gray-500">Urgency: </span>
+                <span className="text-gray-500">{t('urgency_label')} </span>
                 <span className={`font-bold ${result.urgency_score >= 80 ? 'text-red-400' : result.urgency_score >= 60 ? 'text-orange-400' : 'text-yellow-400'}`}>
                   {result.urgency_score}/100 ({result.urgency_raw})
                 </span>
               </p>
               <p className="text-gray-300">
-                <span className="text-gray-500">Location: </span>
-                {result.location} {result.coords_found ? '📍' : '⚠️ coordinates not found'}
+                <span className="text-gray-500">{t('location_label').replace(' *', '')} </span>
+                {result.location} {result.coords_found ? '📍' : `⚠️ ${t('location_found')}`}
               </p>
               <p className="text-gray-300 mt-2 italic text-xs">{result.summary}</p>
             </div>
@@ -141,14 +141,14 @@ useEffect(() => {
         {/* Error State */}
         {status === 'error' && (
           <div className="bg-red-900 border border-red-500 rounded-lg p-4 mb-6">
-            <p className="text-red-300 font-medium">❌ Failed. Make sure AI server is running on port 5000 and fill all required fields.</p>
+            <p className="text-red-300 font-medium">{t('report_failed')}</p>
           </div>
         )}
 
         <div className="space-y-5">
           {/* Need Type */}
           <div>
-            <label className="text-gray-300 text-sm mb-2 block">Need Type</label>
+            <label className="text-gray-300 text-sm mb-2 block">{t('need_type')}</label>
             <div className="flex gap-2">
               {needTypes.map(type => (
                 <button key={type}
@@ -166,23 +166,23 @@ useEffect(() => {
 
           {/* Location */}
           <div>
-            <label className="text-gray-300 text-sm mb-1 block">Location *</label>
+            <label className="text-gray-300 text-sm mb-1 block">{t('location_label')}</label>
             <input
               type="text"
               value={form.location}
               onChange={e => setForm({ ...form, location: e.target.value })}
-              placeholder="Village name, District, State"
+              placeholder={t('location_placeholder')}
               className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-orange-400"
             />
           </div>
 
           {/* Message */}
           <div>
-            <label className="text-gray-300 text-sm mb-1 block">Report Message *</label>
+            <label className="text-gray-300 text-sm mb-1 block">{t('report_message')}</label>
             <textarea
               value={form.message}
               onChange={e => setForm({ ...form, message: e.target.value })}
-              placeholder="Describe the crisis situation..."
+              placeholder={t('report_placeholder')}
               rows={5}
               className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-orange-400 resize-none"
             />
@@ -196,9 +196,9 @@ useEffect(() => {
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                Analyzing with AI...
+                {t('analyzing')}
               </span>
-            ) : 'Submit Report →'}
+            ) : t('submit_report')}
           </button>
 
           {/* Demo trigger */}
@@ -212,7 +212,7 @@ useEffect(() => {
               setLoading(false)
             }}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-all text-lg">
-            🎬 Fire Demo Sequence
+            {t('fire_demo')}
           </button>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-map
 import { collection, onSnapshot, getDocs, query, where, orderBy, doc } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
+import { useTranslation } from 'react-i18next'
 
 const mapContainerStyle = { width: '100%', height: '100%' }
 const center = { lat: 20.5937, lng: 78.9629 }
@@ -16,9 +17,9 @@ const getColor = (urgency) => {
 }
 
 const getLabel = (urgency) => {
-  if (urgency >= 80) return { text: 'CRITICAL', bg: 'bg-red-600' }
-  if (urgency >= 50) return { text: 'HIGH', bg: 'bg-orange-500' }
-  return { text: 'MEDIUM', bg: 'bg-yellow-500' }
+  if (urgency >= 80) return { textKey: 'critical', bg: 'bg-red-600' }
+  if (urgency >= 50) return { textKey: 'high',     bg: 'bg-orange-500' }
+  return              { textKey: 'medium',          bg: 'bg-yellow-500' }
 }
 
 // ─── Icon factories ───────────────────────────────────────────────────────────
@@ -138,19 +139,21 @@ const getDaysUnmet = (created_at) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function Dashboard() {
-  const [clusters, setClusters] = useState([])
-  const [reports, setReports] = useState([])
+  const { t } = useTranslation()
+
+  const [clusters, setClusters]                     = useState([])
+  const [reports, setReports]                       = useState([])
   const [unclusteredReports, setUnclusteredReports] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [hoveredReport, setHoveredReport] = useState(null)
-  const [showFeed, setShowFeed] = useState(true)
-  const [reportText, setReportText] = useState('')
-  const [showReportModal, setShowReportModal] = useState(false)
-  const [reportLoading, setReportLoading] = useState(false)
-  const [demoLoading, setDemoLoading] = useState(false)
-  const [demoSuccess, setDemoSuccess] = useState(false)
-  const [alerts, setAlerts] = useState([])
-  const [, forceUpdate] = useState(0)
+  const [selected, setSelected]                     = useState(null)
+  const [hoveredReport, setHoveredReport]           = useState(null)
+  const [showFeed, setShowFeed]                     = useState(true)
+  const [reportText, setReportText]                 = useState('')
+  const [showReportModal, setShowReportModal]       = useState(false)
+  const [reportLoading, setReportLoading]           = useState(false)
+  const [demoLoading, setDemoLoading]               = useState(false)
+  const [demoSuccess, setDemoSuccess]               = useState(false)
+  const [alerts, setAlerts]                         = useState([])
+  const [, forceUpdate]                             = useState(0)
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -186,8 +189,7 @@ function Dashboard() {
   // ── Derive unclustered reports ─────────────────────────────────────────────
   useEffect(() => {
     const clusteredIds = new Set(clusters.flatMap(c => c.report_ids || []))
-    const unclustered = reports.filter(r => !clusteredIds.has(r.id))
-    setUnclusteredReports(unclustered)
+    setUnclusteredReports(reports.filter(r => !clusteredIds.has(r.id)))
   }, [clusters, reports])
 
   // ── Force re-render every 1 min for time-ago displays ─────────────────────
@@ -259,7 +261,7 @@ function Dashboard() {
       {/* Predictive alerts */}
       {alerts.length > 0 && (
         <div className="bg-yellow-900 border-b border-yellow-700 px-6 py-2 flex items-center gap-3 overflow-x-auto">
-          <span className="text-yellow-400 text-sm font-bold flex-shrink-0">⚠️ PREDICTIVE ALERTS:</span>
+          <span className="text-yellow-400 text-sm font-bold flex-shrink-0">⚠️ {t('predictive_title')}:</span>
           {alerts.slice(0, 3).map((alert, i) => (
             <span key={i} className="text-yellow-200 text-xs bg-yellow-800 px-3 py-1 rounded-full flex-shrink-0">
               {alert.region} — {alert.need_type} ({alert.confidence} confidence)
@@ -280,14 +282,14 @@ function Dashboard() {
       {/* Stats bar */}
       <div className="flex gap-3 px-4 md:px-6 py-3 bg-gray-800 border-b border-gray-700 overflow-x-auto items-center">
         {[
-          { label: 'CRITICAL', value: clusters.filter(c => c.combined_urgency >= 80).length, bg: 'bg-red-900', text: 'text-red-300' },
-          { label: 'HIGH', value: clusters.filter(c => c.combined_urgency >= 50 && c.combined_urgency < 80).length, bg: 'bg-orange-900', text: 'text-orange-300' },
-          { label: 'MEDIUM', value: clusters.filter(c => c.combined_urgency < 50).length, bg: 'bg-yellow-900', text: 'text-yellow-300' },
-          { label: 'CLUSTERS', value: clusters.length, bg: 'bg-gray-700', text: 'text-gray-300' },
-          { label: 'REPORTS', value: reports.length, bg: 'bg-blue-900', text: 'text-blue-300' },
+          { labelKey: 'critical',      value: clusters.filter(c => c.combined_urgency >= 80).length,                            bg: 'bg-red-900',    text: 'text-red-300'    },
+          { labelKey: 'high',          value: clusters.filter(c => c.combined_urgency >= 50 && c.combined_urgency < 80).length, bg: 'bg-orange-900', text: 'text-orange-300' },
+          { labelKey: 'medium',        value: clusters.filter(c => c.combined_urgency < 50).length,                             bg: 'bg-yellow-900', text: 'text-yellow-300' },
+          { labelKey: 'cluster_severity', value: clusters.length,                                                               bg: 'bg-gray-700',   text: 'text-gray-300'   },
+          { labelKey: 'total_reports', value: reports.length,                                                                   bg: 'bg-blue-900',   text: 'text-blue-300'   },
         ].map(stat => (
-          <div key={stat.label} className={`px-4 py-2 rounded-lg flex-shrink-0 ${stat.bg}`}>
-            <p className={`text-xs ${stat.text}`}>{stat.label}</p>
+          <div key={stat.labelKey} className={`px-4 py-2 rounded-lg flex-shrink-0 ${stat.bg}`}>
+            <p className={`text-xs ${stat.text}`}>{t(stat.labelKey).toUpperCase()}</p>
             <p className="text-white font-bold text-xl">{stat.value}</p>
           </div>
         ))}
@@ -296,7 +298,7 @@ function Dashboard() {
           disabled={demoLoading}
           className="ml-auto flex-shrink-0 bg-gradient-to-r from-emerald-500 to-green-400 text-white text-sm font-bold px-5 py-2 rounded-lg disabled:opacity-60"
         >
-          {demoLoading ? 'Firing…' : '🚀 Fire Demo'}
+          {demoLoading ? t('analyzing') : `🚀 ${t('fire_demo')}`}
         </button>
         <button
           onClick={clearDemo}
@@ -341,13 +343,13 @@ function Dashboard() {
                 >
                   <div style={{ maxWidth: 220, fontFamily: 'sans-serif' }}>
                     <p style={{ fontWeight: 'bold', marginBottom: 4, color: '#1e3a5f' }}>
-                      {hoveredReport.need_type || 'Report'}
+                      {hoveredReport.need_type || t('incoming_reports')}
                       <span style={{
                         marginLeft: 8, fontSize: 11,
                         color: hoveredReport.urgency_score >= 80 ? '#dc2626'
                           : hoveredReport.urgency_score >= 50 ? '#ea580c' : '#ca8a04'
                       }}>
-                        Urgency {hoveredReport.urgency_score ?? '?'}
+                        {t('urgency_label')} {hoveredReport.urgency_score ?? '?'}
                       </span>
                     </p>
                     {hoveredReport.summary && (
@@ -390,9 +392,9 @@ function Dashboard() {
 
           {/* Legend */}
           <div className="absolute bottom-14 left-4 bg-gray-900 bg-opacity-90 text-white px-3 py-2 rounded-lg text-xs border border-gray-600 space-y-1">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /><span>Critical cluster</span></div>
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-500 inline-block" /><span>High cluster</span></div>
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" /><span>Medium cluster</span></div>
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /><span>{t('critical')} cluster</span></div>
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-500 inline-block" /><span>{t('high')} cluster</span></div>
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" /><span>{t('medium')} cluster</span></div>
             <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500 inline-block" /><span>Individual report</span></div>
           </div>
 
@@ -401,7 +403,7 @@ function Dashboard() {
             onClick={() => setShowFeed(f => !f)}
             className="absolute bottom-4 left-4 bg-gray-800 bg-opacity-90 text-white px-4 py-2 rounded-lg text-sm border border-gray-600 hover:bg-gray-700 transition-all"
           >
-            {showFeed ? '📋 Hide Feed' : '📋 Show Feed'}
+            {showFeed ? `📋 ${t('hide_feed')}` : `📋 ${t('show_feed')}`}
           </button>
         </div>
 
@@ -409,14 +411,14 @@ function Dashboard() {
         {showFeed && !selected && (
           <div className="w-72 md:w-80 bg-gray-800 overflow-y-auto border-l border-gray-700 flex flex-col">
             <div className="p-4 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-white font-bold">📡 Live Feed</h2>
+              <h2 className="text-white font-bold">📡 {t('incoming_reports')}</h2>
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             </div>
             <div className="divide-y divide-gray-700 overflow-y-auto">
               {reports.length === 0 ? (
                 <div className="p-6 text-center">
-                  <p className="text-gray-500 text-sm">No reports yet…</p>
-                  <p className="text-gray-600 text-xs mt-1">Press 🚀 Fire Demo to see live data</p>
+                  <p className="text-gray-500 text-sm">{t('no_reports')}</p>
+                  <p className="text-gray-600 text-xs mt-1">{t('no_reports_sub')}</p>
                 </div>
               ) : reports.map(report => (
                 <div key={report.id} className="p-4 hover:bg-gray-700 transition-colors">
@@ -426,7 +428,7 @@ function Dashboard() {
                       {report.urgency_score ?? '?'}
                     </span>
                   </div>
-                  {report.summary && <p className="text-gray-300 text-xs leading-relaxed">{report.summary}</p>}
+                  {report.summary  && <p className="text-gray-300 text-xs leading-relaxed">{report.summary}</p>}
                   {report.raw_text && <p className="text-gray-500 text-xs italic mt-1 truncate">"{report.raw_text}"</p>}
                 </div>
               ))}
@@ -439,7 +441,7 @@ function Dashboard() {
           <div className="w-72 md:w-80 bg-gray-800 overflow-y-auto border-l border-gray-700">
             <div className="p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-white font-bold text-lg">Cluster Details</h2>
+                <h2 className="text-white font-bold text-lg">{t('cluster_details')}</h2>
                 <button
                   onClick={() => { setSelected(null); setShowFeed(true) }}
                   className="text-gray-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700"
@@ -449,24 +451,16 @@ function Dashboard() {
               </div>
 
               <div className={`inline-block px-3 py-1 rounded-full text-white text-sm font-bold mb-4 ${getLabel(selected.combined_urgency).bg}`}>
-                {getLabel(selected.combined_urgency).text} — {selected.combined_urgency}/100
+                {t(getLabel(selected.combined_urgency).textKey).toUpperCase()} — {selected.combined_urgency}/100
               </div>
 
               <div className="space-y-3">
                 {[
-                  { label: 'NEED TYPE', value: selected.need_type || 'Unknown' },
-                  { label: 'REPORTS IN CLUSTER', value: selected.report_count || 1 },
-                  { label: 'VILLAGES AFFECTED', value: selected.village_count || 1 },
-                  {
-                    label: 'PEOPLE AFFECTED',
-                    value: selected.total_affected != null
-                      ? `${selected.total_affected.toLocaleString()} people`
-                      : 'Unknown'
-                  },
-                  {
-                    label: 'DAYS UNMET',
-                    value: getDaysUnmet(selected.created_at ?? selected.timestamp ?? selected.assigned_at)
-                  },
+                  { label: t('need_type'),      value: selected.need_type || 'Unknown' },
+                  { label: t('total_reports'),  value: selected.report_count || 1 },
+                  { label: t('volunteers_label'), value: selected.village_count || 1 },
+                  { label: t('people_affected'), value: selected.total_affected != null ? `${selected.total_affected.toLocaleString()} people` : 'Unknown' },
+                  { label: t('days_unmet'),     value: getDaysUnmet(selected.created_at ?? selected.timestamp ?? selected.assigned_at) },
                 ].map(item => (
                   <div key={item.label} className="bg-gray-700 rounded-lg p-3">
                     <p className="text-gray-400 text-xs mb-1">{item.label}</p>
@@ -476,47 +470,48 @@ function Dashboard() {
 
                 {/* ⏱ Response tracking */}
                 <div className="bg-gray-700 rounded-lg p-3">
-                  <p className="text-gray-400 text-xs">⏱ REPORTED</p>
+                  <p className="text-gray-400 text-xs">⏱ {t('reported_label').toUpperCase()}</p>
                   <p className={`text-sm font-bold ${getDelayColor(selected.created_at)}`}>
                     {getTimeAgo(selected.created_at ?? selected.timestamp)}
                   </p>
                 </div>
 
                 <div className="bg-gray-700 rounded-lg p-3">
-                  <p className="text-gray-400 text-xs">👤 STATUS</p>
+                  <p className="text-gray-400 text-xs">👤 {t('volunteer_status').toUpperCase()}</p>
                   <p className="text-sm font-bold">
                     {selected.status === 'resolved'
-                      ? '✅ DONE'
+                      ? `✅ ${t('done')}`
                       : selected.assigned_at
-                        ? '👤 ASSIGNED'
-                        : '⚠️ NOT ASSIGNED'}
+                        ? `👤 ${t('assigned')}`
+                        : `⚠️ ${t('pending')}`}
                   </p>
                   <p className="text-xs mt-1 text-gray-300">
                     {selected.status === 'resolved'
                       ? `Completed ${getTimeAgo(selected.resolved_at)}`
                       : selected.assigned_at
-                        ? `Assigned ${getTimeAgo(selected.assigned_at)}`
+                        ? `${t('assigned')} ${getTimeAgo(selected.assigned_at)}`
                         : 'Waiting for assignment'}
                   </p>
                 </div>
 
                 {selected.summary && (
                   <div className="bg-gray-700 rounded-lg p-3">
-                    <p className="text-gray-400 text-xs mb-1">SUMMARY</p>
+                    <p className="text-gray-400 text-xs mb-1">{t('summary_label').toUpperCase()}</p>
                     <p className="text-white text-sm leading-relaxed">{selected.summary}</p>
                   </div>
                 )}
               </div>
 
-                 {selected.resolution_note && (
-                    <div className="bg-green-900 rounded-lg p-3 mt-2">
-                      <p className="text-green-300 text-xs mb-1">📝 RESOLUTION NOTE</p>
-                      <p className="text-white text-sm">{selected.resolution_note}</p>
-                 </div>
-                )}
+              {selected.resolution_note && (
+                <div className="bg-green-900 rounded-lg p-3 mt-2">
+                  <p className="text-green-300 text-xs mb-1">📝 {t('resolution_note').toUpperCase()}</p>
+                  <p className="text-white text-sm">{selected.resolution_note}</p>
+                </div>
+              )}
+
               {/* Urgency bar */}
               <div className="mt-4">
-                <p className="text-gray-400 text-xs mb-2">URGENCY LEVEL</p>
+                <p className="text-gray-400 text-xs mb-2">{t('urgency').toUpperCase()}</p>
                 <div className="w-full bg-gray-600 rounded-full h-3">
                   <div
                     className="h-3 rounded-full transition-all duration-500"
@@ -530,24 +525,24 @@ function Dashboard() {
                 onClick={() => generateReport(selected)}
                 className="mt-5 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105"
               >
-                📄 Generate AI Report
+                📄 {t('generate_report')}
               </button>
 
               {/* Assignment status */}
               <div className="bg-gray-700 rounded-lg p-3 mt-3">
-                <p className="text-gray-400 text-xs mb-1">👤 ASSIGNED TO</p>
+                <p className="text-gray-400 text-xs mb-1">👤 {t('assigned_to').toUpperCase()}</p>
                 <p className="text-white font-semibold text-sm">
                   {selected.ui_assigned_to || selected.volunteer_name || selected.assigned_volunteer_id || 'Not assigned'}
                 </p>
                 <p className={`text-xs mt-1 font-bold ${selected.assigned_at ? getDelayColor(selected.assigned_at) : 'text-gray-400'}`}>
                   {!selected.assigned_at
-                    ? '⚠️ Not assigned yet'
+                    ? `⚠️ ${t('pending')}`
                     : (() => {
                         const time = parseTime(selected.assigned_at)
                         const hrs = (Date.now() - time.getTime()) / (1000 * 3600)
-                        if (hrs < 0.5) return `✅ Recently assigned (${getTimeAgo(selected.assigned_at)})`
-                        if (hrs < 2) return `⚠️ Awaiting response (${getTimeAgo(selected.assigned_at)})`
-                        return `🚨 No response (${getTimeAgo(selected.assigned_at)})`
+                        if (hrs < 0.5) return `✅ ${t('recently_assigned')} (${getTimeAgo(selected.assigned_at)})`
+                        if (hrs < 2)   return `⚠️ ${t('awaiting_response')} (${getTimeAgo(selected.assigned_at)})`
+                        return             `🚨 ${t('no_response')} (${getTimeAgo(selected.assigned_at)})`
                       })()
                   }
                 </p>
@@ -559,19 +554,19 @@ function Dashboard() {
                   onClick={() => reassignCluster(selected.id)}
                   className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 rounded-lg"
                 >
-                  🔄 Reassign
+                  🔄 {t('reassign')}
                 </button>
                 <button
                   onClick={() => forceAssignCluster(selected.id)}
                   className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg"
                 >
-                  ⚡ Force Assign
+                  ⚡ {t('force_assign')}
                 </button>
                 <button
                   onClick={() => resolveCluster(selected.id)}
                   className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg"
                 >
-                  ✅ Mark Resolved
+                  ✅ {t('mark_resolved')}
                 </button>
               </div>
 
@@ -586,7 +581,7 @@ function Dashboard() {
           <div className="bg-gray-800 rounded-2xl w-full max-w-2xl max-h-screen overflow-y-auto border border-gray-700">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-white font-bold text-xl">📄 AI Generated Report</h2>
+                <h2 className="text-white font-bold text-xl">📄 {t('generate_report')}</h2>
                 <button
                   onClick={() => setShowReportModal(false)}
                   className="text-gray-400 hover:text-white text-2xl w-8 h-8 flex items-center justify-center"
@@ -597,7 +592,7 @@ function Dashboard() {
               {reportLoading ? (
                 <div className="flex flex-col items-center py-12">
                   <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin mb-4" />
-                  <p className="text-gray-400">Generating report with AI…</p>
+                  <p className="text-gray-400">{t('analyzing')}</p>
                 </div>
               ) : (
                 <>
@@ -608,7 +603,7 @@ function Dashboard() {
                     onClick={() => navigator.clipboard.writeText(reportText)}
                     className="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm transition-all"
                   >
-                    📋 Copy to Clipboard
+                    📋 {t('copy_clipboard')}
                   </button>
                 </>
               )}

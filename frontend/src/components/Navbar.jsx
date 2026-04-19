@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { auth } from '../firebase'
 import { signOut, onAuthStateChanged } from 'firebase/auth'
+import { useTranslation } from 'react-i18next'
+import LanguageSwitcher from './LanguageSwitcher'
 
 function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [user, setUser] = useState(null)
+  const { t } = useTranslation()
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => setUser(u))
@@ -15,14 +18,14 @@ function Navbar() {
   }, [])
 
   const links = [
-    { path: '/dashboard', label: '🗺️ Dashboard' },
-    { path: '/reports', label: '📋 Reports' },
-    { path: '/tasks', label: '✅ Tasks' },
-    { path: '/volunteers', label: '👥 Volunteers' },
-    { path: '/analytics', label: '📊 Analytics' },
-    { path: '/intake', label: '📝 Intake' },
-    { path: '/volunteer', label: '🙋 Register' },
-    { path: '/my-tasks', label: '📌 My Tasks' },
+    { path: '/dashboard', label: `🗺️ ${t('dashboard')}` },
+    { path: '/reports',   label: `📋 ${t('reports')}` },
+    { path: '/tasks',     label: `✅ ${t('tasks')}` },
+    { path: '/volunteers',label: `👥 ${t('volunteers')}` },
+    { path: '/analytics', label: `📊 ${t('analytics')}` },
+    { path: '/intake',    label: `📝 ${t('intake')}` },
+    { path: '/volunteer', label: `🙋 ${t('register')}` },
+    { path: '/my-tasks',  label: `📌 ${t('my_tasks')}` },
   ]
 
   const handleLogout = async () => {
@@ -42,7 +45,7 @@ function Navbar() {
           )}
         </div>
 
-        {/* Desktop links */}
+        {/* Desktop links + language switcher */}
         <div className="hidden lg:flex gap-4 items-center">
           {links.map(link => (
             <Link key={link.path} to={link.path}
@@ -55,8 +58,11 @@ function Navbar() {
             </Link>
           ))}
           <button onClick={handleLogout} className="text-sm text-red-400 hover:text-red-300 ml-2">
-            Logout
+            {t('logout')}
           </button>
+          <div className="border-l border-gray-600 pl-3 ml-1">
+            <LanguageSwitcher />
+          </div>
         </div>
 
         {/* Mobile hamburger */}
@@ -72,6 +78,9 @@ function Navbar() {
           {user?.displayName && (
             <p className="text-orange-400 text-sm font-medium pb-2 border-b border-gray-700">{user.displayName}</p>
           )}
+          <div className="pb-2 border-b border-gray-700">
+            <LanguageSwitcher />
+          </div>
           {links.map(link => (
             <Link key={link.path} to={link.path}
               onClick={() => setMenuOpen(false)}
@@ -82,7 +91,7 @@ function Navbar() {
             </Link>
           ))}
           <button onClick={handleLogout} className="text-sm text-red-400 text-left py-2">
-            Logout
+            {t('logout')}
           </button>
         </div>
       )}
