@@ -1,0 +1,265 @@
+{
+  "brand": "PULSE",
+  "dashboard": "డ్యాష్‌బోర్డ్",
+  "reports": "నివేదికలు",
+  "tasks": "పనులు",
+  "volunteers": "స్వచ్ఛంద సేవకులు",
+  "analytics": "విశ్లేషణలు",
+  "intake": "నమోదు",
+  "register": "నమోదు చేసుకోండి",
+  "my_tasks": "నా పనులు",
+  "logout": "లాగ్ అవుట్",
+  "nav_login": "లాగిన్",
+  "nav_get_started": "ప్రారంభించండి →",
+
+  "welcome": "PULSE కు స్వాగతం",
+  "choose_role": "మీరు ఎలా కొనసాగాలనుకుంటున్నారు ఎంచుకోండి",
+
+  "volunteer_card": "🙋 స్వచ్ఛంద సేవకుడు",
+  "volunteer_desc": "సంక్షోభంలో ఉన్న వారికి సహాయం చేయండి, పనులు పొందండి మరియు ప్రభావం చూపండి.",
+
+  "ngo_card": "🏢 NGO అడ్మిన్",
+  "ngo_desc": "సంక్షోభాలను పర్యవేక్షించండి, వాలంటీర్లను నిర్వహించండి మరియు వనరులను పంపిణీ చేయండి.",
+
+  "loading_analytics": "విశ్లేషణలు లోడ్ అవుతున్నాయి...",
+  "loading_reports": "నివేదికలు లోడ్ అవుతున్నాయి...",
+  "loading_tasks": "పనులు లోడ్ అవుతున్నాయి...",
+
+  "backend_error": "విశ్లేషణలు లోడ్ కాలేదు. బ్యాక్‌ఎండ్ నడుస్తుందో చూసుకోండి.",
+
+  "analytics_title": "విశ్లేషణలు",
+  "analytics_sub": "పూర్తి సిస్టమ్ అవలోకనం — Firestore నుండి ప్రత్యక్షంగా",
+
+  "total_reports": "మొత్తం నివేదికలు",
+  "people_affected": "ప్రభావిత వ్యక్తులు",
+  "volunteers_label": "వాలంటీర్లు",
+  "tasks_done": "పూర్తి చేసిన పనులు",
+
+  "reports_by_type": "రకం ప్రకారం నివేదికలు",
+  "cluster_severity": "క్లస్టర్ తీవ్రత",
+  "volunteer_status": "వాలంటీర్ స్థితి",
+  "task_status": "పని స్థితి",
+
+  "available": "అందుబాటులో",
+  "deployed": "పంపిణీ చేయబడిన",
+  "assigned": "కేటాయించబడిన",
+  "accepted": "అంగీకరించబడింది",
+  "done": "పూర్తి",
+  "pending": "పెండింగ్",
+  "total": "మొత్తం",
+  "critical": "అత్యవసరం",
+  "high": "ఎక్కువ",
+
+  "intake_title": "మాన్యువల్ నివేదిక నమోదు",
+  "intake_sub": "NGO సమన్వయకర్త నేరుగా సంక్షోభ నివేదిక నమోదు చేయవచ్చు",
+
+  "need_type": "అవసర రకం",
+  "location_label": "స్థానం *",
+  "location_placeholder": "గ్రామం, జిల్లా, రాష్ట్రం",
+
+  "report_message": "నివేదిక సందేశం *",
+  "report_placeholder": "సంక్షోభ పరిస్థితిని వివరించండి...",
+
+  "submit_report": "నివేదిక సమర్పించండి →",
+  "analyzing": "AI ద్వారా విశ్లేషణ జరుగుతోంది...",
+
+  "fire_demo": "🎬 డెమో ప్రారంభించండి",
+
+  "report_saved": "నివేదిక సేవ్ చేయబడింది",
+  "report_failed": "విఫలమైంది. AI సర్వర్ 5000 పోర్ట్‌లో నడుస్తుందో చూసుకోండి.",
+
+  "need_label": "అవసరం:",
+  "urgency_label": "అత్యవసరత:",
+
+  "location_found": "కోఆర్డినేట్లు కనబడలేదు",
+
+  "predictive_title": "అంచనా హెచ్చరికలు",
+  "predictive_sub": "చరిత్ర ఆధారంగా AI అంచనాలు",
+
+  "high_confidence": "అధిక నమ్మకం",
+  "medium_conf": "మధ్యస్థం",
+  "total_predictions": "మొత్తం అంచనాలు",
+
+  "no_predictions": "ఇప్పటికీ అంచనాలు లేవు",
+  "no_predictions_sub": "తగిన డేటా తర్వాత అంచనాలు వస్తాయి",
+
+  "historical_incidents": "చారిత్రక సంఘటనలు",
+  "avg_affected": "సగటు ప్రభావితులు",
+
+  "alert_ngo": "NGO కి హెచ్చరిక పంపండి →",
+
+  "incoming_reports": "వస్తున్న నివేదికలు",
+  "incoming_sub": "WhatsApp నుండి లైవ్ నివేదికలు",
+
+  "no_reports": "ఇంకా నివేదికలు లేవు",
+  "no_reports_sub": "WhatsApp సందేశాలు వచ్చినప్పుడు నివేదికలు కనిపిస్తాయి",
+
+  "urgency": "అత్యవసరత",
+
+  "task_tracker": "పని ట్రాకర్",
+  "task_sub": "లైవ్ వాలంటీర్ కేటాయింపులు",
+
+  "no_tasks": "ఇంకా పనులు లేవు",
+  "no_tasks_sub": "వాలంటీర్లు కేటాయించినప్పుడు పనులు కనిపిస్తాయి",
+
+  "volunteer_title": "వాలంటీర్‌గా నమోదు చేసుకోండి",
+  "volunteer_sub": "PULSE తో చేరి సహాయం చేయండి",
+
+  "full_name": "పూర్తి పేరు *",
+  "org_name": "సంస్థ / NGO పేరు",
+  "email_label": "ఇమెయిల్",
+  "whatsapp": "WhatsApp నంబర్ *",
+  "city": "మీ నగరం *",
+
+  "skills_label": "నైపుణ్యాలు *",
+
+  "registering": "నమోదు జరుగుతోంది...",
+  "register_btn": "వాలంటీర్‌గా నమోదు చేసుకోండి →",
+
+  "register_success": "✅ నమోదు అయింది! WhatsApp అలర్ట్స్ అందుకుంటారు.",
+  "register_error": "❌ అన్ని ఫీల్డ్స్ నింపండి.",
+
+  "login_title": "మళ్లీ స్వాగతం",
+  "register_title": "NGO ఖాతా సృష్టించండి",
+
+  "login_sub": "మీ NGO డ్యాష్‌బోర్డ్‌లో లాగిన్ అవ్వండి",
+  "register_sub": "PULSE ఉపయోగించడానికి NGO నమోదు చేయండి",
+
+  "org_label": "సంస్థ పేరు *",
+  "org_placeholder": "Red Cross India...",
+
+  "password_label": "పాస్‌వర్డ్",
+  "google_btn": "Google తో కొనసాగండి",
+
+  "create_account": "ఖాతా సృష్టించండి →",
+  "sign_in": "సైన్ ఇన్ →",
+
+  "please_wait": "దయచేసి వేచి ఉండండి...",
+
+  "switch_to_login": "ఖాతా ఉందా? లాగిన్ అవ్వండి",
+  "switch_to_register": "ఖాతా లేదా? నమోదు చేసుకోండి",
+
+  "volunteer_prompt": "మీరు వాలంటీరా?",
+  "volunteer_link": "ఇక్కడ నమోదు చేయండి",
+
+  "analyzed": "విశ్లేషించబడింది",
+  "of": "లో",
+  "total_label": "మొత్తం",
+
+  "hero_badge": "LIVE — AI భారత్ అంతటా 1,284+ సిగ్నల్స్ మానిటర్ చేస్తోంది",
+  "hero_title1": "సంక్షోభ ప్రతిస్పందన,",
+  "hero_title2": "AI ద్వారా శక్తివంతం",
+
+  "hero_sub": "AI నివేదికలను విశ్లేషిస్తోంది",
+  "hero_desc": "PULSE డేటాను సేకరించి వెంటనే సహాయం అందిస్తుంది...",
+
+  "hero_realtime": "సిస్టమ్ రియల్ టైమ్‌లో అప్డేట్ అవుతోంది...",
+
+  "ivr_btn": "📞 అత్యవసర కాల్",
+  "how_btn": "ఇది ఎలా పనిచేస్తుంది",
+
+  "map_preview": "లైవ్ సంక్షోభ మ్యాప్",
+  "map_tracking": "🌍 AI లైవ్ సిగ్నల్స్ ట్రాక్ చేస్తోంది...",
+  "map_cluster": "లైవ్ క్లస్టర్ ఏర్పడుతోంది...",
+
+  "live_activity": "లైవ్ కార్యకలాపం",
+  "waiting_signals": "సిగ్నల్స్ కోసం వేచి ఉంది...",
+
+  "whatsapp_incoming": "WhatsApp నివేదికలు",
+  "whatsapp_listening": "నివేదికలు వినబడుతున్నాయి...",
+
+  "problem_title1": "సంక్షోభం వచ్చినప్పుడు ప్రతిస్పందన",
+  "problem_title2": "నెమ్మదిగా మరియు అసంఘటితంగా ఉంటుంది",
+
+  "problem_desc": "సందేశాలు వస్తాయి కానీ సమన్వయం లేదు.",
+
+  "built_title": "అందుకే మేము నిర్మించాము",
+  "built_sub": "AI వ్యవస్థ chaos ను క్రమబద్ధతగా మార్చుతుంది",
+
+  "live_impact": "లైవ్ ప్రభావం",
+  "people_reached": "సహాయం పొందిన వారు",
+  "volunteers_deployed": "వాలంటీర్లు పంపిణీ",
+  "crises_resolved": "సమస్యలు పరిష్కారం",
+
+  "stat1_label": "WhatsApp → సంక్షోభ హెచ్చరిక",
+  "stat2_label": "ఆటో మ్యాచింగ్",
+  "stat3_label": "మాన్యువల్ సమన్వయం",
+
+  "how_title": "PULSE ఎలా పనిచేస్తుంది",
+  "how_sub": "60 సెకన్లలో చర్య",
+
+  "step1_title": "WhatsApp సందేశం",
+  "step1_desc": "ఏ భాషలోనైనా",
+
+  "step2_title": "AI విశ్లేషణ",
+  "step2_desc": "తక్షణ డేటా",
+
+  "step3_title": "క్లస్టర్ ఏర్పాట్లు",
+  "step3_desc": "సమీప నివేదికలు గ్రూప్ అవుతాయి",
+
+  "step4_title": "వాలంటీర్ పంపబడతాడు",
+  "step4_desc": "తక్షణ నోటిఫికేషన్",
+
+  "why_title": "PULSE ఎందుకు ప్రత్యేకం",
+
+  "why1_title": "AI ఆధారిత",
+  "why1_desc": "త్వరగా అర్థం చేసుకుంటుంది",
+
+  "why2_title": "రియల్ టైమ్",
+  "why2_desc": "రిఫ్రెష్ అవసరం లేదు",
+
+  "why3_title": "సమన్వయం అవసరం లేదు",
+  "why3_desc": "ఆటోమేటిక్ డిప్లాయ్",
+
+  "cmd_live": "కమాండ్ సెంటర్",
+  "cmd_signals": "సక్రియ సిగ్నల్స్",
+  "cmd_ai": "AI నిర్ణయాలు",
+  "cmd_volunteers": "వాలంటీర్లు",
+  "cmd_response": "సగటు సమయం",
+
+  "cta_title": "త్వరగా స్పందించడానికి సిద్ధమా?",
+  "cta_sub": "PULSE తో చేరండి",
+
+  "cta_btn1": "ఉచితంగా ప్రారంభించండి →",
+  "cta_btn2": "వాలంటీర్ అవ్వండి",
+
+  "footer": "⚡ PULSE — NGOs కోసం నిర్మించబడింది. AI ద్వారా నడుస్తోంది.",
+    "loading_volunteers": "స్వచ్ఛంద సేవకులు లోడ్ అవుతున్నారు...",
+  "no_volunteers": "ఇప్పటికీ స్వచ్ఛంద సేవకులు లేరు",
+  "no_volunteers_sub": "స్వచ్ఛంద సేవకుల పేజీ నుండి నమోదు చేయండి",
+  "busy": "బిజీగా ఉంది",
+  "medium": "మధ్యస్థ",
+  "reassign": "మళ్లీ కేటాయించండి",
+  "force_assign": "బలవంతంగా కేటాయించండి",
+  "mark_resolved": "పరిష్కరించబడిందిగా గుర్తించండి",
+  "generate_report": "AI రిపోర్ట్ రూపొందించండి",
+  "cluster_details": "క్లస్టర్ వివరాలు",
+  "summary_label": "సారాంశం",
+  "assigned_to": "కేటాయించబడింది",
+  "resolution_note": "పరిష్కార గమనిక",
+  "hide_feed": "ఫీడ్ దాచండి",
+  "show_feed": "ఫీడ్ చూపించండి",
+  "recently_assigned": "ఇటీవల కేటాయించబడింది",
+  "awaiting_response": "ప్రతిస్పందన కోసం వేచి ఉంది",
+  "no_response": "ప్రతిస్పందన లేదు",
+  "copy_clipboard": "క్లిప్‌బోర్డ్‌కు కాపీ చేయండి",
+  "reported_label": "రిపోర్ట్ చేయబడింది",
+  "cluster_label": "క్లస్టర్",
+    "volunteer_portal": "స్వచ్ఛంద సేవకుల పోర్టల్",
+  "enter_whatsapp": "మీకు కేటాయించిన పనులను చూడడానికి WhatsApp నంబర్ నమోదు చేయండి",
+  "whatsapp_number": "మీ WhatsApp నంబర్",
+  "phone_placeholder": "+91 9876543210",
+  "find": "వెతుకు →",
+  "search_again": "← మళ్లీ వెతుకు",
+  "status": "స్థితి",
+  "on_duty": "🟢 విధిలో ఉన్నారు",
+  "off_duty": "🔴 విధి నుండి బయట",
+  "no_tasks_found": "పనులు కనుగొనబడలేదు",
+  "no_tasks_for_phone": "ఈ నంబర్‌కు పనులు లేవు",
+  "active_tasks": "సక్రియ పనులు",
+  "task_history": "పని చరిత్ర",
+  "accept_task": "✅ పనిని స్వీకరించండి",
+  "mark_done": "🎉 పూర్తయింది",
+  "crisis_task": "సంక్షోభ ప్రతిస్పందన పని",
+  "update_error": "పని అప్డేట్ చేయలేకపోయాం. మళ్లీ ప్రయత్నించండి."
+}
