@@ -15,102 +15,177 @@ function Reports() {
       where('status', '==', 'analyzed'),
       orderBy('timestamp', 'desc')
     )
+
     const unsub = onSnapshot(q, (snapshot) => {
       setReports(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
       setLoading(false)
     })
+
     return () => unsub()
   }, [])
 
-  const getUrgencyColor = (score) => {
-    if (score >= 80) return 'text-red-400'
-    if (score >= 50) return 'text-orange-400'
-    return 'text-yellow-400'
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#0f172a,_#020617)] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-emerald-400 text-sm font-medium animate-pulse">
+          {t('loading_reports')}
+        </p>
+      </div>
+    )
   }
-
-  const getUrgencyBg = (score) => {
-    if (score >= 80) return 'bg-red-900 border-red-700'
-    if (score >= 50) return 'bg-orange-900 border-orange-700'
-    return 'bg-yellow-900 border-yellow-700'
-  }
-
-  if (loading) return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center">
-      <div className="w-12 h-12 border-4 border-orange-400 border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-gray-400">{t('loading_reports')}</p>
-    </div>
-  )
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#0f172a,_#020617)] text-white">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        <h2 className="text-3xl font-bold mb-2">{t('incoming_reports')}</h2>
-        <p className="text-gray-400 mb-8">{t('incoming_sub')}</p>
 
-        {/* Stats strip */}
-        <div className="flex gap-4 mb-8">
-          <div className="bg-red-900 px-4 py-3 rounded-lg">
-            <p className="text-red-300 text-xs">{t('critical').toUpperCase()}</p>
-            <p className="text-white font-bold text-xl">{reports.filter(r => r.urgency_score >= 80).length}</p>
+      <div className="max-w-4xl mx-auto px-6 py-10">
+
+        {/* Header */}
+        <div className="mb-10">
+          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs px-4 py-2 rounded-full mb-5 font-semibold tracking-widest uppercase">
+            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+            Live Feed
           </div>
-          <div className="bg-orange-900 px-4 py-3 rounded-lg">
-            <p className="text-orange-300 text-xs">{t('high').toUpperCase()}</p>
-            <p className="text-white font-bold text-xl">{reports.filter(r => r.urgency_score >= 50 && r.urgency_score < 80).length}</p>
-          </div>
-          <div className="bg-gray-700 px-4 py-3 rounded-lg">
-            <p className="text-gray-300 text-xs">{t('total').toUpperCase()}</p>
-            <p className="text-white font-bold text-xl">{reports.length}</p>
-          </div>
+
+          <h2 className="text-5xl font-black mb-3 bg-gradient-to-r from-white via-emerald-100 to-emerald-400 bg-clip-text text-transparent">
+            {t('incoming_reports')}
+          </h2>
+
+          <p className="text-gray-500 text-sm">
+            {t('incoming_sub')}
+          </p>
         </div>
 
-        {/* Report list */}
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-10">
+
+          {[
+            {
+              label: 'CRITICAL',
+              value: reports.filter(r => r.urgency_score >= 80).length,
+              color: 'red'
+            },
+            {
+              label: 'HIGH',
+              value: reports.filter(r => r.urgency_score >= 50 && r.urgency_score < 80).length,
+              color: 'orange'
+            },
+            {
+              label: 'TOTAL',
+              value: reports.length,
+              color: 'emerald'
+            }
+          ].map(s => (
+            <div
+              key={s.label}
+              className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center hover:scale-[1.02] transition-all"
+            >
+              <p className="text-xs text-gray-400 font-bold mb-2">
+                {s.label}
+              </p>
+              <p className="text-4xl font-black text-emerald-400">
+                {s.value}
+              </p>
+            </div>
+          ))}
+
+        </div>
+
+        {/* Empty state */}
         {reports.length === 0 ? (
-          <div className="bg-gray-800 rounded-lg p-8 text-center">
-            <p className="text-gray-400 text-lg">{t('no_reports')}</p>
-            <p className="text-gray-500 text-sm mt-1">{t('no_reports_sub')}</p>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-16 text-center">
+            <p className="text-6xl mb-4">📭</p>
+            <p className="text-gray-300 text-xl font-bold mb-2">
+              No reports yet
+            </p>
+            <p className="text-gray-600 text-sm">
+              Reports appear when WhatsApp messages come in
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {reports.map(report => (
-              <div key={report.id} className={`rounded-lg p-5 border ${getUrgencyBg(report.urgency_score)}`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex gap-2 mb-2">
-                      {report.need_type && (
-                        <span className="bg-gray-700 text-gray-200 text-xs px-2 py-1 rounded-full capitalize">
-                          {report.need_type}
-                        </span>
-                      )}
-                      {report.language && (
-                        <span className="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded-full">
-                          {report.language}
-                        </span>
-                      )}
+
+            {reports.map(report => {
+              const urgency = report.urgency_score || 0
+
+              const border =
+                urgency >= 80
+                  ? 'border-red-500/30'
+                  : urgency >= 50
+                  ? 'border-orange-500/30'
+                  : 'border-yellow-500/30'
+
+              const glow =
+                urgency >= 80
+                  ? 'hover:shadow-[0_0_25px_rgba(239,68,68,0.12)]'
+                  : urgency >= 50
+                  ? 'hover:shadow-[0_0_25px_rgba(249,115,22,0.12)]'
+                  : 'hover:shadow-[0_0_25px_rgba(234,179,8,0.12)]'
+
+              const bar =
+                urgency >= 80
+                  ? '#ef4444'
+                  : urgency >= 50
+                  ? '#f97316'
+                  : '#eab308'
+
+              return (
+                <div
+                  key={report.id}
+                  className={`bg-gradient-to-r from-gray-900/70 to-gray-800/40 border ${border} rounded-2xl p-5 hover:scale-[1.01] transition-all ${glow}`}
+                >
+
+                  {/* top tags */}
+                  <div className="flex flex-wrap gap-2 mb-3 items-center">
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+
+                    {report.need_type && (
+                      <span className="bg-emerald-500/15 text-emerald-400 text-xs px-3 py-1 rounded-full capitalize border border-emerald-500/20">
+                        {report.need_type}
+                      </span>
+                    )}
+
+                    {report.language && (
+                      <span className="bg-blue-500/15 text-blue-400 text-xs px-3 py-1 rounded-full border border-blue-500/20">
+                        {report.language}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* content */}
+                  <p className="text-white font-semibold text-sm mb-2">
+                    {report.summary}
+                  </p>
+
+                  <p className="text-gray-600 text-xs italic mb-3">
+                    "{report.raw_message}"
+                  </p>
+
+                  {/* urgency */}
+                  <div className="flex justify-between items-center">
+                    <div className="w-full bg-gray-800 rounded-full h-1.5 mr-4">
+                      <div
+                        className="h-1.5 rounded-full"
+                        style={{
+                          width: urgency + '%',
+                          backgroundColor: bar
+                        }}
+                      />
                     </div>
-                    {report.summary && (
-                      <p className="text-white text-sm mb-2">{report.summary}</p>
-                    )}
-                    {report.raw_message && (
-                      <p className="text-gray-400 text-xs italic">"{report.raw_message}"</p>
-                    )}
-                    {(report.location_lat && report.location_lng) && (
-                      <p className="text-gray-500 text-xs mt-2">
-                        📍 {report.location_lat?.toFixed(4)}, {report.location_lng?.toFixed(4)}
-                      </p>
-                    )}
+
+                    <span className="text-2xl font-black text-emerald-400">
+                      {urgency}
+                    </span>
                   </div>
-                  <div className="ml-4 text-right">
-                    <p className={`text-2xl font-bold ${getUrgencyColor(report.urgency_score)}`}>
-                      {report.urgency_score || '?'}
-                    </p>
-                    <p className="text-gray-500 text-xs">{t('urgency')}</p>
-                  </div>
+
                 </div>
-              </div>
-            ))}
+              )
+            })}
+
           </div>
         )}
+
       </div>
     </div>
   )

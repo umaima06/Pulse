@@ -289,6 +289,10 @@ python seed_data.py reset   # fresh start
 - Live cluster status tracking using Firestore onSnapshot (instant UI updates without refresh)
 - Response tracking system for volunteers (assigned → accepted → resolved lifecycle monitoring)
 - Time-based urgency intelligence layer including response delay tracking and “days unmet” crisis duration metric
+- Fixed and completed **Volunteer Task Portal** with real-time data flow  (active, completed, task history) 
+- Added **live availability control system** for volunteers synced with firestore  
+- Introduced **resolution notes** for cluster closure tracking  
+- Integrated **exact-location Google Maps links** in all task notifications for precise task navigation
 
 ---
 
@@ -623,6 +627,113 @@ Added full workflow support for cluster actions:
 - Fixed mismatched `assigned_at` and status conditions  
 - Corrected incorrect assignment state display in UI  
 - Prevented stale cluster status rendering
+---
+## Day 7 — Volunteer Portal + Resolution notes + Navigation Updgrade
+---
+
+### Volunteer Task Portal (Built + Fixed)
+
+Implemented a dedicated **Volunteer Portal** for task tracking and management.
+
+The base UI existed but was not functional due to incorrect Firestore mapping and missing linkage between volunteers and tasks. Fixed the complete data flow and made the system fully operational.
+
+#### Features:
+
+- Volunteers can search tasks using their **phone number** (no authentication required)
+- Real-time task fetching using Firestore `onSnapshot` *(live updates without refresh)*
+- Tasks dynamically update as status changes
+
+#### Task Categorization:
+
+- **Active tasks** *(pending + accepted)*
+- **Completed tasks** *(done)*
+- **Total tasks count**
+
+#### Bug Fix:
+
+- Previously, tasks were not visible due to missing `volunteer_phone` field in `/tasks`
+- Fixed backend to include `volunteer_phone` during task creation
+- Updated frontend query to correctly fetch tasks using phone number
+
+#### Result:
+
+Volunteer portal is now fully functional with **real-time task visibility and tracking**
+
+---
+
+### Availability Toggle (Volunteer Control)
+
+Added a **real-time availability control system** for volunteers.
+
+#### Features:
+
+- Toggle switch for:
+  - **On Duty** (`available = true`)
+  - **Off Duty** (`available = false`)
+- Updates Firestore instantly upon interaction
+
+#### Automatic Availability Logic:
+
+- When a task is **accepted** → volunteer is marked as unavailable  
+- When a task is **completed** → volunteer is marked as available again  
+
+#### Implementation Details:
+
+- Uses Firestore `updateDoc` on volunteer document
+- UI state synchronized only after successful database update
+
+---
+
+### Resolution Notes in Cluster Dashboard
+
+Enhanced the **cluster resolution workflow** to support detailed closure tracking.
+
+#### Features:
+
+- NGOs can mark clusters as resolved with a **custom resolution note** in the cluster panel of dashboard.
+
+#### Data Stored:
+
+- `resolution_note` — descriptive text explaining resolution  
+- `resolved_at` — timestamp of resolution  
+
+---
+
+### Google Maps Link in Task Notifications (NEW)
+
+Integrated precise navigation support for volunteers through **Twilio notifications**.
+
+#### Feature Overview:
+
+Volunteers receive a **direct Google Maps navigation link** for each assigned task with the exact Co-ordinates of the location where the report was made.
+
+#### Applied Across All Assignment Flows:
+
+- `/assign-volunteer`
+- `autoAssignIfUrgent`
+- `/reassign`
+- `/force-assign`
+
+#### Key Improvement:
+
+- Uses coordinates of the **most urgent report within the cluster**
+- Avoids using cluster centroid *(ensures higher accuracy)*
+
+#### Implementation Details:
+
+Generated using:
+https://www.google.com/maps/dir/?api=1&destination=latitude,longitude
+
+
+Injected into:
+
+- WhatsApp message body  
+- SMS message body  
+
+#### Result:
+
+- Enables **precise real-world navigation** for volunteers  
+- Reduces response delay and location confusion  
 
 ---
 ### How The Full Pipeline Works
