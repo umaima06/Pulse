@@ -361,7 +361,10 @@ python seed_data.py reset   # fresh start
 - Added **live availability control system** for volunteers synced with firestore  
 - Introduced **resolution notes** for cluster closure tracking  
 - Integrated **exact-location Google Maps links** in all task notifications for precise task navigation
-
+- Multilingual React frontend (7 languages: English, Hindi, Telugu, Tamil, Marathi, Bengali, Urdu)
+- Reusable LanguageSwitcher component integrated in Navbar, Landing, Login, and RoleSelect
+- Translation JSON files for all 6 non-English languages covering every UI string
+- Real-time language switching across all 10 pages without page reload
 ---
 
 ### Day 1
@@ -802,6 +805,41 @@ Injected into:
 
 - Enables **precise real-world navigation** for volunteers  
 - Reduces response delay and location confusion  
+
+---
+## Day 8 — Multilingual Frontend (i18n)
+
+Implemented full multilingual support across the entire React frontend.
+
+- Installed and configured `i18next` + `react-i18next` with 7 language support: English, Hindi, Telugu, Tamil, Marathi, Bengali, Urdu
+- Built reusable `LanguageSwitcher` component — compact toggle buttons (EN / हि / తె / த / म / বা / اُر) that switch the entire UI language instantly without page reload
+- Integrated `LanguageSwitcher` into:
+  - **Navbar** — desktop links bar + mobile hamburger menu
+  - **Landing page** — top navigation bar
+  - **Login page** — top right corner (absolute positioned)
+  - **RoleSelect page** — top right corner (absolute positioned)
+- Applied `useTranslation()` hook across all 10 pages:
+  - Dashboard, Reports, Analytics, Tasks, Intake
+  - Volunteer, VolunteerPortal, PredictiveAlerts, Login, RoleSelect
+- Created translation JSON files for all 7 languages covering every UI string:
+  - Labels, buttons, headings, error messages, placeholders, status indicators, loading states, empty states
+- `en.json` serves as the master reference file for all translation keys
+- English is also set as the hardcoded `fallbackLng` in `i18n.js` — if any key is missing in any language file, English renders as fallback automatically
+
+### How It Works
+User clicks language toggle (e.g. हि for Hindi)
+↓
+i18next switches active language globally
+↓
+Every t('key') call re-renders with Hindi value
+↓
+Entire UI updates instantly — no page reload
+↓
+Language persists across navigation within session
+
+### Result
+
+Every word visible in the PULSE dashboard — from cluster status labels to volunteer task buttons to NGO analytics charts to IVR simulation text — now switches language in real time when the toggle is clicked. Zero changes to any business logic, Firebase queries, API calls, or component structure. The translation layer is completely additive.
 
 ---
 ### How The Full Pipeline Works
