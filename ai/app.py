@@ -235,6 +235,136 @@ def generate_report():
     )
     return jsonify(result), 200 if result['success'] else 500
 
+@app.route('/verify-proof', methods=['POST'])
+def verify_proof():
+    """
+    Multi-layer AI verification of volunteer proof photos.
+    Checks: content relevance, stock photo detection, field authenticity.
+    """
+    import base64
+    import urllib.request as urlreq
+    import json
+
+    body = request.get_json()
+    if not body or 'image_url' not in body or 'task' not in body:
+        return jsonify({"success": False, "error": "Missing image_url or task"}), 400
+
+    image_url = body['image_url']
+    task = body['task']
+    image_auth = body.get('image_auth', '')
+
+    try:
+        # Download image from Twilio
+        req = urlreq.Request(
+            image_url,
+            headers={
+                'User-Agent': 'PULSE-X/1.0',
+                'Authorization': image_auth
+            }
+        )
+        with urlreq.urlopen(req, timeout=10) as response:
+            image_bytes = response.read()
+
+        image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+
+        task_context = {
+            "water": "water distribution, water tankers, people collecting water, filled containers, water supply activity, water pipes being fixed",
+            "food":  "food distribution, meals being served, food packets, people receiving food, ration distribution, cooking for community",
+            "medical": "medical aid, first aid being given, doctor treating patient, medicine distribution, health camp, medical equipment"
+        }
+        expected = task_context.get(task.get('need_type', 'water'), "humanitarian aid activity in field")
+
+        prompt = f"""You are a fraud detection and verification AI for PULSE X, an NGO task verification system.
+
+A volunteer claimed to complete this task:
+- Task type: {task.get('need_type', 'unknown')}
+- Location: {task.get('location_text', 'unknown')}  
+- People to help: {task.get('affected_people', 'unknown')}
+
+They sent this image as proof. Analyze it carefully for ALL of the following:
+
+CHECK 1 — CONTENT MATCH:
+Does the image show evidence of: {expected}?
+Look for visible aid activity, people being helped, relevant supplies or equipment.
+
+CHECK 2 — AUTHENTICITY (most important):
+- Does this look like a real field photo or a stock/professional photo?
+- Stock photos: perfect lighting, posed subjects, commercial quality
+- Real field photos: natural lighting, candid moments, phone camera quality, visible surroundings
+- Is there any sign this is a screenshot, downloaded image, or taken indoors in non-crisis context?
+
+CHECK 3 — CONTEXT PLAUSIBILITY:
+- Does the setting match a field crisis scenario?
+- Are there visible signs of the reported crisis type?
+- Does it look like India / rural / urban poor area consistent with NGO work?
+
+Based on ALL three checks, provide your verdict.
+
+Return ONLY this JSON. No explanation. No markdown:
+{{
+  "verified": true or false,
+  "confidence": <float 0.0 to 1.0>,
+  "fraud_risk": "low" or "medium" or "high",
+  "checks": {{
+    "content_matches_task": true or false,
+    "looks_authentic_field_photo": true or false,
+    "context_is_plausible": true or false
+  }},
+  "reason": "<one clear sentence explaining verdict>",
+  "detected_activity": "<what you actually see in the image>",
+  "flags": ["<any concern 1>", "<any concern 2>"]
+}}
+
+Be strict. If anything looks suspicious, set fraud_risk to high and verified to false.
+A volunteer sending a Google Images screenshot should NEVER pass."""
+
+        from google import genai
+        from google.genai import types
+
+        gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                types.Part.from_text(text=prompt)
+            ]
+        )
+
+        text = response.text.strip()
+        if "```" in text:
+            parts = text.split("```")
+            for part in parts:
+                part = part.strip()
+                if part.startswith("json"):
+                    part = part[4:].strip()
+                if part.startswith("{"):
+                    text = part
+                    break
+
+        result = json.loads(text.strip())
+
+        # Final verdict logic
+        checks = result.get("checks", {})
+        all_checks_pass = (
+            checks.get("content_matches_task") and
+            checks.get("looks_authentic_field_photo") and
+            checks.get("context_is_plausible")
+        )
+
+        # Override if fraud risk is high
+        if result.get("fraud_risk") == "high":
+            result["verified"] = False
+            result["confidence"] = min(result.get("confidence", 0.3), 0.3)
+
+        # Must pass all 3 checks to be verified
+        if not all_checks_pass:
+            result["verified"] = False
+
+        return jsonify({"success": True, "verification": result})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    
 
 @app.route('/pre-alert', methods=['POST'])
 def pre_alert():

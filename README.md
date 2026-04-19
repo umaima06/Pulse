@@ -129,6 +129,29 @@ Volunteers now receive messages in this format:
 Reply ACCEPT to confirm.
 This removes ambiguity and ensures the volunteer knows exactly where to go and what to handle.
 
+@random day 2---
+🤖 AI-Powered Proof Verification (Gemini Vision)
+
+This system uses AI-based visual verification to ensure that volunteer-submitted proof images genuinely reflect completed field tasks. Instead of relying on basic checks like whether an image exists online, the backend sends the submitted image to Gemini Vision API, which analyzes the actual visual content.
+
+The AI evaluates whether the image matches the assigned task context. For example, if the task involves water distribution, the system verifies the presence of relevant elements such as water containers, distribution activity, volunteers in action, or people receiving aid. It also assesses authenticity signals (e.g., real field conditions vs. stock or staged images) and contextual plausibility.
+
+Only when the AI confirms that the image is both relevant and authentic is the task marked as completed. This approach ensures higher reliability, prevents fraudulent submissions, and enables trustworthy, automated verification at scale without manual intervention.
+
+🔑 Gemini API Setup
+Go to https://aistudio.google.com/
+Sign in and generate your Google Gemini API Key
+Copy the API key
+Add it to your environment file:
+GEMINI_API_KEY="YOUR_API_KEY"
+
+📌 Add this in:
+
+backend/.env
+ai/.env
+
+Make sure to restart your server after adding the key.
+
 # What I Built
 
 # Core AI Pipeline

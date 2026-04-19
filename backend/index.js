@@ -375,6 +375,83 @@ async function handleBotConversation(senderNumber, incomingText) {
   return null;
 }
 
+async function processVerificationAsync(mediaUrl, senderNumber, task, taskId, volDoc, vol) {
+  try {
+    console.log(`🤖 Running AI verification for task ${taskId}...`);
+
+    const authHeader = 'Basic ' + Buffer.from(
+      `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
+    ).toString('base64');
+
+    const verifyRes = await fetch('http://localhost:5000/verify-proof', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_url: mediaUrl,
+        image_auth: authHeader,
+        task: {
+          need_type: task.need_type,
+          location_text: task.location_text,
+          affected_people: task.affected_people
+        }
+      })
+    });
+
+    const verifyData = await verifyRes.json();
+    if (!verifyData.success) throw new Error(verifyData.error);
+
+    const v = verifyData.verification;
+    const checks = v.checks || {};
+
+    if (v.verified && v.fraud_risk !== 'high' && v.confidence >= 0.5) {
+      // ✅ VERIFIED
+      await db.collection('tasks').doc(taskId).update({
+        status: 'done',
+        proof_image_url: mediaUrl,
+        proof_verified: true,
+        proof_confidence: v.confidence,
+        proof_reason: v.reason,
+        proof_activity: v.detected_activity,
+        completed_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      await db.collection('volunteers').doc(volDoc.id).update({
+        available: true,
+        assigned_task_id: ''
+      });
+
+      await client.messages.create({
+        from: 'whatsapp:+14155238886',
+        to: senderNumber,
+        body: `✅ Proof verified!\n${v.reason}\nTask complete. Thank you ${vol.name}! 🙏`
+      });
+
+    } else {
+      // ❌ NOT VERIFIED → DO NOT STORE ANYTHING
+      console.log(`❌ Proof rejected for task ${taskId}`);
+      // (Optional) you can track attempt count if you want
+      await db.collection('tasks').doc(taskId).update({
+        last_failed_attempt_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      await client.messages.create({
+        from: 'whatsapp:+14155238886',
+        to: senderNumber,
+        body: `⚠️ Proof not accepted.\nReason: ${v.reason}\nPlease send a clearer photo.`
+      });
+    }
+
+  } catch (err) {
+    console.error(err);
+
+    await client.messages.create({
+      from: 'whatsapp:+14155238886',
+      to: senderNumber,
+      body: `⚠️ Verification failed. Please try again.`
+    });
+  }
+}
+
 // ─── ROUTES ─────────────────────────────────────────────────────────
 
 // Test route
@@ -405,61 +482,23 @@ app.post('/incoming-message', async (req, res) => {
         if (taskId) {
           if (upperText === 'ACCEPT') {
             await db.collection('tasks').doc(taskId).update({ status: 'accepted' });
-            
-            // 🔥 GET TASK DATA
-            const taskDoc = await db.collection('tasks').doc(taskId).get();
-            const task = taskDoc.data();
-            const lat = task.location_lat;
-            const lng = task.location_lng;
-            
-            // 🗺️ GOOGLE MAPS LINK
-            // Navigation from volunteer's location to crisis location
-            const mapsLink = (volunteer.location_lat && volunteer.location_lng)
-            ? `https://www.google.com/maps/dir/?api=1&origin=${volunteer.location_lat},${volunteer.location_lng}&destination=${lat},${lng}&travelmode=driving`
-            : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-
-            // Calculate distance (if volunteer coords exist)
-            let distanceText = '';
-            let etaText = '';
-            
-            if (volunteer.location_lat && volunteer.location_lng && lat && lng) {
-              const distance = calculateDistance(
-                volunteer.location_lat, volunteer.location_lng, lat, lng);
-              const rounded = Math.round(distance * 10) / 10;
-              const eta = Math.round((distance / 40) * 60);
-              distanceText = `📏 Distance: ${rounded} km\n`;
-              etaText = `⏱️ ETA: ~${eta} mins\n`;
-            }
-            
             console.log(`✅ ${volunteer.name} accepted task`);
-            
             res.set('Content-Type', 'text/xml');
             return res.send(`
               <Response>
-              <Message>✅ Task accepted, ${volunteer.name}!
-              📍 Crisis location: ${task.location_text}
-              ${distanceText}${etaText}🗺️ Navigation: ${mapsLink}
-              
-              ⚠️ Issue: ${task.need_type}
-              👥 People affected: ${task.affected_people || 'Unknown'}
-              📝 ${task.summary || task.raw_text || 'Proceed to location immediately'}
-
-              Reply DONE when complete.</Message>
+                <Message>✅ Task accepted! Please proceed to the location. Reply DONE when complete.</Message>
               </Response>
-              `);
-            }
+            `);
+          }
 
           if (upperText === 'DONE') {
-            await db.collection('tasks').doc(taskId).update({ status: 'done' });
-            await db.collection('volunteers').doc(volunteerDoc.id).update({
-              available: true,
-              assigned_task_id: ''
-            });
-            console.log(`✅ ${volunteer.name} completed task`);
+            console.log(`📸 ${volunteer.name} said DONE — requesting proof`);
             res.set('Content-Type', 'text/xml');
             return res.send(`
               <Response>
-                <Message>🎉 Thank you! Task marked complete. You are now available for new tasks.</Message>
+                <Message>Almost done, ${volunteer.name}! 
+📸Please send ONE photo showing the completed work.
+Our AI will verify it and mark your task complete automatically.</Message>
               </Response>
             `);
           }
@@ -482,7 +521,48 @@ app.post('/incoming-message', async (req, res) => {
       }
     }
 
-// Check bot conversation first
+// ── Handle proof photo submission ──────────────────
+    const mediaUrl = req.body.MediaUrl0;
+    const mediaType = req.body.MediaContentType0;
+    
+    if (mediaUrl && mediaType && mediaType.startsWith('image/')) {
+      console.log(`📸 Image received from ${senderNumber}`);
+
+      res.set('Content-Type', 'text/xml');
+      res.send(`
+        <Response>
+          <Message>📸 Photo received! Verifying your work... please wait.</Message>
+        </Response>`);
+      
+      // 🔥 Continue async (IMPORTANT)
+      const volSnap = await db.collection('volunteers')
+      .where('phone', '==', senderNumber.replace('whatsapp:', ''))
+      .get();
+
+      if (!volSnap.empty) {
+        const volDoc = volSnap.docs[0];
+        const vol = volDoc.data();
+        const taskId = vol.assigned_task_id;
+        
+        if (taskId) {
+          const taskDoc = await db.collection('tasks').doc(taskId).get();
+          const task = taskDoc.data();
+          
+          if (task && task.status === 'awaiting_proof') {
+            // 🚀 CALL ASYNC FUNCTION (no blocking)
+            processVerificationAsync(mediaUrl, senderNumber, task, taskId, volDoc, vol);
+          }
+        }
+      }
+      return; // VERY IMPORTANT
+    }
+  // If no text body, don't run bot (was probably an image-only message)
+    if (!incomingText) {
+      res.set('Content-Type', 'text/xml');
+      return res.send('<Response></Response>');
+    }
+
+    // Check bot conversation first
     const botReply = await handleBotConversation(senderNumber, incomingText);
 
     if (botReply !== null) {
@@ -672,6 +752,7 @@ if (!bestReport) {
     const taskRef = await db.collection('tasks').add({
       cluster_id,
       volunteer_id,
+      volunteer_phone: volunteer.phone,
       need_type:      cluster.need_type,
       location_text: bestReport.location_text,
       location_lat: bestReport.location_lat,
@@ -709,10 +790,12 @@ if (volunteer.phone) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-
+const mapsLink = `https://www.google.com/maps/dir/?api=1&destination=${bestReport.location_lat},${bestReport.location_lng}`;
   await twilio.messages.create({
     body: `🚨 PULSE TASK ASSIGNED
 📍 Location: ${bestReport.location_text}
+🗺 Directions: 
+${mapsLink}
 ⚠️ Issue: ${cluster.need_type}
 👥 People affected: ${bestReport.affected_people}
 📝 Details: ${bestReport.summary || 'No extra details'}
@@ -830,16 +913,6 @@ async function autoAssignIfUrgent(clusterId) {
     const best = scored[0];
     const reportIds = cluster.report_ids || [];
 
-    // Get all reports inside this cluster
-  const reportIds = cluster.report_ids || [];
-  
-  if (reportIds.length === 0) {
-    console.log('⚠️ No reports in cluster');
-    return;
-  }
-  
-  // Pick MOST URGENT report
-
 let bestReport = null;
 
 for (const reportId of reportIds) {
@@ -854,11 +927,14 @@ for (const reportId of reportIds) {
 }
 
 if (!bestReport) {
-  return res.status(400).json({ error: "No valid report found in cluster" });
+  console.log("No valid report found in cluster");
 }
     // Create task
     const taskRef = await db.collection('tasks').add({
-      report_id: bestReport.id,
+      cluster_id:     clusterId,
+      volunteer_id:   best.volunteer_id,
+      volunteer_phone: best.phone,
+      need_type:      cluster.need_type,
       location_text: bestReport.location_text,
       location_lat: bestReport.location_lat,
       location_lng: bestReport.location_lng,
@@ -894,34 +970,13 @@ if (!bestReport) {
         process.env.TWILIO_ACCOUNT_SID,
         process.env.TWILIO_AUTH_TOKEN
       );
-
+const mapsLink = `https://www.google.com/maps/dir/?api=1&destination=${bestReport.location_lat},${bestReport.location_lng}`;
 // Send WhatsApp notification
-const navLink = `https://www.google.com/maps/dir/?api=1&destination=${bestReport.location_lat},${bestReport.location_lng}`;
-
-// distance + ETA
-let distanceText = '';
-let etaText = '';
-
-if (best.location_lat && best.location_lng) {
-  const distance = calculateDistance(
-    best.location_lat,
-    best.location_lng,
-    bestReport.location_lat,
-    bestReport.location_lng
-  );
-
-  const rounded = Math.round(distance * 10) / 10;
-  const eta = Math.round((distance / 40) * 60);
-
-  distanceText = `📏 Distance: ${rounded} km\n`;
-  etaText = `⏱️ ETA: ~${eta} mins\n`;
-}
-
 await twilio.messages.create({
   body: `🚨 PULSE TASK ASSIGNED
   📍 Location: ${bestReport.location_text}
-  ${distanceText}${etaText}
-  🗺️ Start Navigation: ${navLink}
+  🗺 Directions: 
+  ${mapsLink}
   ⚠️ Issue: ${bestReport.need_type}
   👥 People affected: ${bestReport.affected_people}
   📝 Details: ${bestReport.summary || 'No extra details'}
@@ -935,14 +990,13 @@ await twilio.messages.create({
 
 // Send SMS notification
 await twilio.messages.create({
-  body: `🚨 PULSE TASK ASSIGNED
-
-📍 Location: ${bestReport.location_text}
-⚠️ Issue: ${bestReport.need_type}
-👥 People affected: ${bestReport.affected_people || 'Unknown'}
-📝 ${bestReport.summary || bestReport.raw_text}
-
-Reply ACCEPT to confirm.`,
+  body: `PULSE TASK:
+  Location: ${bestReport.location_text}
+  Directions:
+${mapsLink}
+  Issue: ${bestReport.need_type}
+  People: ${bestReport.affected_people}
+  Reply ACCEPT.`,
   from: process.env.TWILIO_REAL_NUMBER,
   to: best.phone
 });
@@ -1969,6 +2023,7 @@ return res.json({
     res.status(500).json({ reply: "Server error" });
   }
 });
+
 app.post('/reassign', async (req, res) => {
   try {
     const { cluster_id } = req.body;
