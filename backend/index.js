@@ -24,7 +24,7 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
-
+const PORT = process.env.PORT || 3000;
 // ─── HELPER FUNCTIONS ───────────────────────────────────────────────
 
 // Distance between two coordinates in km
@@ -46,6 +46,10 @@ const skillMap = {
   medical: ['medical', 'doctor', 'nurse', 'first_aid']
 };
 
+// ─── SANITIZE UNDEFINED FIELDS ───────────────────────────────────────────────
+function safe(val, fallback = '') {
+  return val !== undefined && val !== null ? val : fallback
+}
 // ─── AI ENRICHMENT ──────────────────────────────────────────────────
 
 async function enrichWithPULSEAI(reportId, rawText) {
@@ -750,22 +754,22 @@ if (!bestReport) {
   return res.status(400).json({ error: "No valid report found in cluster" });
 }
     const taskRef = await db.collection('tasks').add({
-      cluster_id,
-      volunteer_id,
-      volunteer_phone: volunteer.phone,
-      need_type:      cluster.need_type,
-      location_text: bestReport.location_text,
-      location_lat: bestReport.location_lat,
-      location_lng: bestReport.location_lng,
-      report_id: bestReport.id,
-      summary: bestReport.summary,
-      affected_people: bestReport.affected_people,
-      volunteer_name: volunteer.name,
-      status:         'assigned',
-      assigned_at: admin.firestore.FieldValue.serverTimestamp(),
-      ngo_id: cluster.ngo_id || 'default',
-      timestamp:      admin.firestore.FieldValue.serverTimestamp()
-    });
+  cluster_id,
+  volunteer_id,
+  volunteer_phone:  safe(volunteer.phone),
+  need_type:        safe(cluster.need_type),
+  location_text:    safe(bestReport.location_text),
+  location_lat:     safe(bestReport.location_lat, 0),
+  location_lng:     safe(bestReport.location_lng, 0),
+  report_id:        safe(bestReport.id),
+  summary:          safe(bestReport.summary),
+  affected_people:  safe(bestReport.affected_people, 0),
+  volunteer_name:   safe(volunteer.name),
+  status:           'assigned',
+  assigned_at:      admin.firestore.FieldValue.serverTimestamp(),
+  ngo_id:           safe(cluster.ngo_id, 'default'),
+  timestamp:        admin.firestore.FieldValue.serverTimestamp()
+})
 
     await db.collection('volunteers').doc(volunteer_id).update({
       available:        false,
@@ -931,23 +935,23 @@ if (!bestReport) {
 }
     // Create task
     const taskRef = await db.collection('tasks').add({
-      cluster_id:     clusterId,
-      volunteer_id:   best.volunteer_id,
-      volunteer_phone: best.phone,
-      need_type:      cluster.need_type,
-      location_text: bestReport.location_text,
-      location_lat: bestReport.location_lat,
-      location_lng: bestReport.location_lng,
-      report_id: bestReport.id,
-      summary: bestReport.summary,
-      affected_people: bestReport.affected_people,
-      volunteer_name: best.name,
-      status:         'assigned',
-      auto_assigned:  true,
-      ngo_id: cluster.ngo_id || 'default',
-      assigned_at: admin.firestore.FieldValue.serverTimestamp(),
-      timestamp:      admin.firestore.FieldValue.serverTimestamp()
-    });
+  cluster_id:       clusterId,
+  volunteer_id:     best.volunteer_id,
+  volunteer_phone:  safe(best.phone),
+  need_type:        safe(cluster.need_type),
+  location_text:    safe(bestReport.location_text),
+  location_lat:     safe(bestReport.location_lat, 0),
+  location_lng:     safe(bestReport.location_lng, 0),
+  report_id:        safe(bestReport.id),
+  summary:          safe(bestReport.summary),
+  affected_people:  safe(bestReport.affected_people, 0),
+  volunteer_name:   safe(best.name),
+  status:           'assigned',
+  auto_assigned:    true,
+  ngo_id:           safe(cluster.ngo_id, 'default'),
+  assigned_at:      admin.firestore.FieldValue.serverTimestamp(),
+  timestamp:        admin.firestore.FieldValue.serverTimestamp()
+})
 
     // Mark volunteer unavailable
     await db.collection('volunteers').doc(best.volunteer_id).update({
@@ -2260,7 +2264,7 @@ await clusterRef.update({
 
 // ─── START SERVER ────────────────────────────────────────────────────
 
-const PORT = process.env.PORT || 3000;
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
