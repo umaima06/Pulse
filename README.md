@@ -30,9 +30,19 @@ PULSE/
 ├── frontend/                      ← Person C — React dashboard
 │   └── src/
 │   │   └──components/
+│   │   │  └── Chatbot.jsx
+│   │   │  └── LanguageSwitcher.jsx
 │   │   │  └── Navbar.jsx
 │   │   │  └── ProtectedRoute.jsx
 │   │   │  └── Spinner.jsx
+│   │   └── locales/
+│   │   │  └── bn.json
+│   │   │  └── en.json
+│   │   │  └── hi.json
+│   │   │  └── mr.json
+│   │   │  └── ta.json
+│   │   │  └── te.json
+│   │   │  └── ur.json
 │   │   └──pages/
 │   │   │  └── Analytics.jsx
 │   │   │  └── Dashboard.jsx
@@ -51,6 +61,7 @@ PULSE/
 │   │   └──App.css 
 │   │   └──App.jsx
 │   │   └──firebase.js 
+│   │   └──i18n.js
 │   │   └──index.css 
 │   │   └──main.jsx
 │   └──.env
