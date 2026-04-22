@@ -8,7 +8,7 @@ function PredictiveAlerts() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('http://localhost:3000/predictive-alerts')
+    fetch('https://pulse-backend-production-cd6d.up.railway.app/predictive-alerts')
       .then(r => r.json())
       .then(data => { setAlerts(data.alerts || []); setLoading(false) })
       .catch(() => setLoading(false))

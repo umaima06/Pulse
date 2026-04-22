@@ -10,7 +10,7 @@ function Chatbot() {
   ])
   const [input, setInput] = useState("")
   const messagesEndRef = useRef(null)
-  const whatsappLink = `https://wa.me/${import.meta.env.VITE_WHATSAPP_NUMBER.replace('+', '')}`
+  const whatsappLink = `https://wa.me/${(import.meta.env.VITE_WHATSAPP_NUMBER ?? '+14155238886').replace('+', '')}`
   const navigate = useNavigate()
 
   // 🔽 auto scroll to latest message

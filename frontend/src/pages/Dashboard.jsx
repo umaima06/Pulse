@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 
 const mapContainerStyle = { width: '100%', height: '100%' }
 const center = { lat: 20.5937, lng: 78.9629 }
-const API_BASE = 'http://localhost:3000'
+const API_BASE = 'https://pulse-backend-production-cd6d.up.railway.app'
 
 // ─── Urgency helpers ──────────────────────────────────────────────────────────
 const getColor = (urgency) => {

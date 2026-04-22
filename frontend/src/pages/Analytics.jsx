@@ -8,7 +8,7 @@ function Analytics() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('http://localhost:3000/analytics')
+    fetch('https://pulse-backend-production-cd6d.up.railway.app/analytics')
       .then(r => r.json())
       .then(data => { setAnalytics(data.analytics); setLoading(false) })
       .catch(() => setLoading(false))
