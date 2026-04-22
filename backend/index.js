@@ -382,6 +382,7 @@ async function handleBotConversation(senderNumber, incomingText) {
 async function processVerificationAsync(mediaUrl, senderNumber, task, taskId, volDoc, vol) {
   try {
     console.log(`🤖 Running AI verification for task ${taskId}...`);
+    console.log(`🔗 Image URL: ${mediaUrl}`);  
 
     const authHeader = 'Basic ' + Buffer.from(
       `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
@@ -425,7 +426,7 @@ async function processVerificationAsync(mediaUrl, senderNumber, task, taskId, vo
       });
 
       await client.messages.create({
-        from: 'whatsapp:+14155238886',
+        from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
         to: senderNumber,
         body: `✅ Proof verified!\n${v.reason}\nTask complete. Thank you ${vol.name}! 🙏`
       });
@@ -439,7 +440,7 @@ async function processVerificationAsync(mediaUrl, senderNumber, task, taskId, vo
       });
 
       await client.messages.create({
-        from: 'whatsapp:+14155238886',
+        from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
         to: senderNumber,
         body: `⚠️ Proof not accepted.\nReason: ${v.reason}\nPlease send a clearer photo.`
       });
@@ -449,7 +450,7 @@ async function processVerificationAsync(mediaUrl, senderNumber, task, taskId, vo
     console.error(err);
 
     await client.messages.create({
-      from: 'whatsapp:+14155238886',
+      from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
       to: senderNumber,
       body: `⚠️ Verification failed. Please try again.`
     });
@@ -496,12 +497,14 @@ app.post('/incoming-message', async (req, res) => {
           }
 
           if (upperText === 'DONE') {
+            await db.collection('tasks').doc(taskId).update({ status: 'awaiting_proof' });
             console.log(`📸 ${volunteer.name} said DONE — requesting proof`);
             res.set('Content-Type', 'text/xml');
             return res.send(`
               <Response>
-                <Message>Almost done, ${volunteer.name}! 
-📸Please send ONE photo showing the completed work.
+                <Message>Almost done, ${volunteer.name}!
+
+📸 Please send ONE photo showing the completed work.
 Our AI will verify it and mark your task complete automatically.</Message>
               </Response>
             `);
@@ -932,6 +935,7 @@ for (const reportId of reportIds) {
 
 if (!bestReport) {
   console.log("No valid report found in cluster");
+  return;
 }
     // Create task
     const taskRef = await db.collection('tasks').add({
