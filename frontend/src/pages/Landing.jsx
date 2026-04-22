@@ -90,26 +90,40 @@ function Landing() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#0f172a,_#020617)] text-white animate-fadeIn">
 
-      {/* ── Navbar ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-8 py-5 border-b border-white/10">
-        <h1 className="text-2xl font-bold text-emerald-400">⚡ {t('brand')}</h1>
-        <div className="flex items-center gap-4">
-          {/* Language switcher lives here in the nav */}
-          <LanguageSwitcher />
-          <Link
-            to="/get-started"
-            className="text-gray-300 hover:text-white text-sm px-4 py-2 transition-colors"
-          >
-            {t('nav_login')}
-          </Link>
-          <Link
-            to="/get-started"
-            className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 active:scale-95"
-          >
-            {t('nav_get_started')}
-          </Link>
-        </div>
+   {/* ── Navbar ─────────────────────────────────────────────────────────── */}
+  <div className="flex flex-col px-8 py-5 border-b border-white/10">
+  
+    {/* TOP ROW */}
+    <div className="flex items-center justify-between w-full">
+      
+      {/* LEFT: Logo */}
+      <h1 className="text-2xl font-bold text-emerald-400">
+        ⚡ {t('brand')}
+      </h1>
+      
+      {/* RIGHT: Login + Get Started */}
+      <div className="flex items-center gap-3">
+        <Link
+        to="/get-started"
+        className="text-gray-300 hover:text-white text-sm px-4 py-2 transition-colors"
+        >
+          {t('nav_login')}
+        </Link>
+        <Link
+        to="/get-started"
+        className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 active:scale-95"
+        >
+          {t('nav_get_started')}
+        </Link>
       </div>
+    </div>
+
+  {/* BOTTOM ROW: Languages */}
+  <div className="mt-3 flex justify-center">
+    <LanguageSwitcher />
+  </div>
+
+</div>
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
       <motion.div
@@ -176,58 +190,6 @@ function Landing() {
           </div>
         )}
       </motion.div>
-
-      {/* ── Live Crisis Map Preview ─────────────────────────────────────────── */}
-      <div className="max-w-5xl mx-auto px-8 mt-4">
-        <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-          <p className="text-sm text-gray-400 mb-2">{t('map_preview')}</p>
-
-          <div className="h-48 bg-black rounded-lg relative overflow-hidden">
-            <div className="absolute w-3 h-3 bg-emerald-400 rounded-full top-10 left-10 animate-ping"></div>
-            <div className="absolute w-3 h-3 bg-red-400 rounded-full top-20 right-20 animate-ping"></div>
-            <div className="absolute w-3 h-3 bg-yellow-400 rounded-full bottom-10 left-20 animate-ping"></div>
-            <div className="absolute w-3 h-3 bg-blue-400 rounded-full top-16 left-1/2 animate-ping"></div>
-            <div className="absolute w-3 h-3 bg-orange-400 rounded-full bottom-12 right-12 animate-ping"></div>
-            <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
-              {t('map_tracking')}
-            </div>
-            <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">
-              {t('map_cluster')}
-            </p>
-          </div>
-
-          {/* Live activity feed */}
-          <div className="mt-6 bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-4">
-            <p className="text-sm text-gray-400 mb-3">{t('live_activity')}</p>
-            {events.length === 0 && (
-              <p className="text-xs text-gray-600">{t('waiting_signals')}</p>
-            )}
-            {events.map((e, i) => (
-              <p key={i} className="text-xs text-emerald-400 animate-fadeIn mb-1">
-                ⚡ {e}
-              </p>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── WhatsApp Simulation ─────────────────────────────────────────────── */}
-      <div className="max-w-5xl mx-auto px-8 mt-8">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all duration-300">
-          <p className="text-sm text-gray-400 mb-3">{t('whatsapp_incoming')}</p>
-          {chat.length === 0 && (
-            <p className="text-xs text-gray-600">{t('whatsapp_listening')}</p>
-          )}
-          {chat.map((msg, i) => (
-            <div
-              key={i}
-              className="bg-green-600 text-white text-xs px-3 py-2 rounded-lg mb-2 w-fit animate-fadeIn"
-            >
-              {msg}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* ── Problem Statement ───────────────────────────────────────────────── */}
       <motion.div
@@ -372,35 +334,6 @@ function Landing() {
           ))}
         </div>
       </motion.div>
-
-      {/* ── Command Center Panel ─────────────────────────────────────────────── */}
-      <div className="max-w-5xl mx-auto px-8 pb-24">
-        <div className="bg-black/40 border border-white/10 rounded-2xl p-6 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all duration-300">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-            <p className="text-gray-400 text-sm">{t('cmd_live')}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="glass rounded-xl p-4 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
-              <p className="text-gray-400">{t('cmd_signals')}</p>
-              <p className="text-emerald-400 text-2xl font-bold">{people.toLocaleString()}</p>
-            </div>
-            <div className="glass rounded-xl p-4 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
-              <p className="text-gray-400">{t('cmd_ai')}</p>
-              <p className="text-purple-400 text-2xl font-bold">{resolved}</p>
-            </div>
-            <div className="glass rounded-xl p-4 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
-              <p className="text-gray-400">{t('cmd_volunteers')}</p>
-              <p className="text-green-400 text-2xl font-bold">{volunteers}</p>
-            </div>
-            <div className="glass rounded-xl p-4 cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
-              <p className="text-gray-400">{t('cmd_response')}</p>
-              <p className="text-yellow-400 text-2xl font-bold">~32s</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ── CTA ─────────────────────────────────────────────────────────────── */}
       <div className="max-w-4xl mx-auto px-8 pb-24">
