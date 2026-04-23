@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 
 const mapContainerStyle = { width: '100%', height: '100%' }
 const center = { lat: 20.5937, lng: 78.9629 }
-const API_BASE = 'https://pulse-backend-production-cd6d.up.railway.app'
+const API_BASE = import.meta.env.VITE_BACKEND_URL
 
 // ─── Urgency helpers ──────────────────────────────────────────────────────────
 const getColor = (urgency) => {
@@ -233,7 +233,7 @@ function Dashboard() {
       const clusterReports = reportsSnap.docs
         .filter(d => (cluster.report_ids || []).includes(d.id))
         .map(d => d.data())
-      const res = await fetch('http://localhost:5000/generate-report', {
+      const res = await fetch((`${API_BASE}/generate-report`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cluster, reports: clusterReports }),

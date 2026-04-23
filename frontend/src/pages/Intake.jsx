@@ -33,7 +33,9 @@ function Intake() {
     try {
       const fullText = `${form.need_type ? form.need_type + ': ' : ''}${form.message}. Location: ${form.location}`
 
-const aiRes = await fetch('http://localhost:5000/analyze', {
+const AI_BASE = import.meta.env.VITE_AI_URL
+
+const aiRes = await fetch(`${AI_BASE}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: fullText })
