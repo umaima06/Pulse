@@ -968,57 +968,88 @@ Copy the https URL → paste in:
 - Firebase Firestore real-time connection + Firebase Auth (Google + Email)
 - Google Maps integration with live cluster visualization + glow animations
 - Landing page, Login/Register, and 10 core pages with shared Navbar
-- Live impact counter on landing page — pulls real numbers from backend analytics
+- Complete UI design system — dark glassmorphism theme with emerald green accents across all pages
+- Live impact counter on landing page — pulls real numbers from backend `/analytics`
+- IVR simulation button on landing page — shows live AI call processing flow
+- WhatsApp chat simulation on landing page — shows live incoming field reports
 - Volunteer registration form with organization name field connected to backend
-- NGO registration with organization name — shown in navbar after login
-- Live feed sidebar with real-time incoming reports
-- Cluster detail side panel with AI report generation button + modal
-- Manual report intake form for NGO coordinators
+- NGO registration with organization name — displayed in navbar after login
+- Live feed sidebar with real-time incoming reports from Firestore onSnapshot
+- Cluster detail side panel with AI report generation button + modal + copy to clipboard
+- Manual report intake form for NGO coordinators — calls AI server, saves enriched data to Firestore
 - Volunteer portal — phone lookup, availability toggle, task accept/done, task history, Google Maps directions
-- Route protection — login required for dashboard pages
-- Demo trigger button — one click fires 3 live crisis reports on map
-- Predictive alerts banner — shows AI-predicted upcoming crises
-- Analytics page — live system stats, impact numbers, task breakdown charts
+- Route protection — login required for all dashboard pages
+- Demo trigger button — one click fires 3 live crisis reports on map instantly
+- Predictive alerts banner — shows AI-predicted upcoming crises from backend
+- Analytics page — live system stats, impact numbers, task breakdown charts with progress bars
 - Mobile responsive navbar with hamburger menu
 - 404 Not Found page + loading spinners throughout
+- Firebase Hosting deployment — live production URL
 
 ### Pages Built
 | Page | Route | What it does |
 |---|---|---|
-| Landing | `/` | Hero page + live impact counter (people helped, volunteers, crises resolved) |
-| Login | `/login` | Firebase Auth — Google login or email/password + organization name on register |
-| Dashboard | `/dashboard` | Live Google Map + clusters + live feed + 🚀 Fire Demo button |
-| Reports | `/reports` | Live incoming WhatsApp field reports with urgency scores |
-| Tasks | `/tasks` | Volunteer assignment tracker — pending, accepted, done |
-| Volunteers | `/volunteers` | All registered volunteers + available/busy status |
-| Analytics | `/analytics` | Live system stats — reports, clusters, volunteers, impact numbers |
-| Intake | `/intake` | NGO coordinator manually logs a crisis report |
-| Register | `/volunteer` | Volunteer registration form with organization name field |
-| My Tasks | `/my-tasks` | Volunteer portal — availability toggle, task accept/done, history, directions |
+| Landing | `/` | Hero + IVR sim + WhatsApp sim + live activity feed + live impact counter |
+| Login | `/login` | Firebase Auth — Google login or email/password + org name on register |
+| Dashboard | `/dashboard` | Live Google Map + clusters + live feed + 🚀 Fire Demo + predictive alerts |
+| Reports | `/reports` | Live incoming WhatsApp/SMS/IVR reports with urgency scores + language tags |
+| Tasks | `/tasks` | Volunteer assignment tracker — pending, accepted, done with status icons |
+| Volunteers | `/volunteers` | All registered volunteers + skills + organization + available/busy status |
+| Analytics | `/analytics` | Live system stats — reports, clusters, volunteers, impact numbers, bar charts |
+| Intake | `/intake` | NGO coordinator logs crisis → AI analyzes → enriched data saved to Firestore |
+| Register | `/volunteer` | Volunteer registration with organization name field |
+| My Tasks | `/my-tasks` | Volunteer portal — availability toggle, accept/done, task history, directions |
+
+### UI Design System
+All pages follow a unified dark glassmorphism design language matching the landing page:
+- Background: `radial-gradient(circle_at_top, #0f172a, #020617)` deep space dark
+- Primary accent: Emerald green (`#10b981`) for buttons, tags, highlights
+- Cards: `bg-gradient-to-br from-gray-900/80 to-gray-800/50` with `border-white/10`
+- Stats cards: Color-coded gradients per severity (red/orange/yellow/emerald)
+- Hover effects: `scale-[1.02]` + `shadow-[0_0_20px_rgba(16,185,129,0.1)]` green glow
+- Buttons: Emerald gradient with `shadow-[0_0_20px_rgba(16,185,129,0.3)]` glow
+- Live indicators: Pulsing green dot on all real-time sections
+- Input fields: `bg-gray-800/50 border-white/10` with emerald focus glow
+- Tags/badges: Semi-transparent colored borders (`bg-emerald-500/20 border-emerald-500/30`)
 
 ### Map Features
-- 🔴 Red circles = CRITICAL clusters (urgency 80+) with outer glow effect
-- 🟠 Orange circles = HIGH (urgency 50–79)
-- 🟡 Yellow circles = MEDIUM (below 50)
-- Click any circle → side panel shows cluster details, need type, urgency bar
-- 📄 Generate AI Report button → calls Person A's Flask `/generate-report` → shows in modal with copy button
-- 📡 Live Feed sidebar → real-time incoming reports from Firestore onSnapshot
-- 🚀 Fire Demo button → calls `/demo-trigger` → 3 crisis reports appear live on map instantly
-- ⚠️ Predictive alerts banner → shows AI-predicted upcoming crises from backend
-- Hide/Show feed toggle button on map
+- 🔴 Red marker = CRITICAL cluster (urgency 80+) — larger size, glow effect
+- 🟠 Orange marker = HIGH cluster (urgency 50–79)
+- 🟡 Yellow marker = MEDIUM cluster (below 50)
+- 🔵 Blue dot = Individual unclustered report
+- Cluster markers show report count as label
+- Click cluster → side panel shows need type, villages, people affected, days unmet, response time, assignment status
+- 📄 Generate AI Report button → calls `/generate-report` → modal with copy button
+- 📡 Live Feed sidebar → real-time reports, hide/show toggle
+- 🚀 Fire Demo button → calls `/demo-trigger` → 3 crisis reports fire live on map
+- ⚠️ Predictive alerts banner → AI-predicted upcoming crises
+- NGO Action Panel: Reassign, Force Assign, Mark Resolved buttons on each cluster
+- Legend showing all marker types
 
 ### Auth Flow
 - NGO coordinators → Login/Register via Google or Email at `/login`
-- Organization name saved on register → shown in navbar after login
-- Volunteers → Register at `/volunteer` with organization field, check tasks at `/my-tasks`
-- All dashboard pages protected — redirects to `/login` if not authenticated
-- Logout button in navbar
+- Organization name saved on register → displayed in navbar
+- Volunteers → Register at `/volunteer`, check tasks at `/my-tasks` (no login needed)
+- All dashboard pages protected — auto-redirects to `/login` if not authenticated
+- Logout button in navbar clears Firebase session
+
+### Deployment
+Frontend deployed on Firebase Hosting: https://pulse-11de7.web.app
+Steps taken:
+```powershell
+npm install -g firebase-tools
+firebase login
+cd frontend
+npm run build
+firebase init    # Hosting → pulse-11de7 → dist → SPA → Yes
+firebase deploy
+```
 
 ### Components Built
 | Component | What it does |
 |---|---|
-| Navbar | Shared navbar with active links + org name display + logout + mobile hamburger |
-| ProtectedRoute | Wraps dashboard pages — redirects unauthenticated users to login |
+| Navbar | Shared navbar — active links, org name display, logout, mobile hamburger menu |
+| ProtectedRoute | Firebase Auth check — redirects unauthenticated users to `/login` |
 
 ### Installation
 ```powershell
@@ -1029,8 +1060,7 @@ npm install
 ### Environment Variables
 Create a `.env` file inside the `frontend` folder:
 VITE_GOOGLE_MAPS_API_KEY=your_key_here
-
-### Running Frontend
+### Running Frontend (Local)
 ```powershell
 cd frontend
 npm run dev
@@ -1042,9 +1072,10 @@ Opens at `http://localhost:5173`
 |---|---|
 | react + vite | Frontend framework |
 | react-router-dom | Page routing |
-| firebase | Firestore real-time data + Firebase Auth |
-| @react-google-maps/api | Google Maps + Circles |
+| firebase | Firestore real-time data + Firebase Auth + Hosting |
+| @react-google-maps/api | Google Maps + Markers + InfoWindow |
 | tailwindcss | Styling |
+| framer-motion | Page animations and transitions |
 
 ### Running The Full System
 ```powershell
@@ -1061,3 +1092,11 @@ node index.js
 cd frontend
 npm run dev
 ```
+
+### Live Demo
+Deployed URL: `https://pulse-11de7.web.app`
+
+Demo credentials:
+- Login with any Google account
+- Or register with email/password + organization name
+  
