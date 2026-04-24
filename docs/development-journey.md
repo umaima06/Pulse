@@ -328,7 +328,8 @@ Frontend (Firebase) → Backend (Railway) → AI (Railway)
 ---
 # Zunairah
 # PULSE - Backend Documentation
-## Backend (Person B)
+## 🔗 Backend (Person B)
+separate Backend for deployement: https://github.com/Zunairah-k/pulse-backend]
 
 ### What I Built
 - Firebase + Firestore database setup with 4 collections
@@ -844,6 +845,19 @@ Language persists across navigation within session
 Every word visible in the PULSE dashboard — from cluster status labels to volunteer task buttons to NGO analytics charts to IVR simulation text — now switches language in real time when the toggle is clicked. Zero changes to any business logic, Firebase queries, API calls, or component structure. The translation layer is completely additive.
 
 ---
+### Next Days
+### Backend Improvements & Fixes (Later Stages)
+
+- Fixed task assignment crashes by sanitizing undefined/null fields using a safe helper function  
+- Stabilized Firestore task creation to prevent missing or invalid data issues  
+- Improved auto-assignment flow for high-urgency clusters
+- Successfully deployed backend on Railway for production use
+- replaced all ai localhost links with deployed ai url
+- Fixed production API URLs and ensured proper frontend-backend communication   
+- Fixed IVR call trigger flow and backend endpoint handling  
+
+---
+
 ### How The Full Pipeline Works
 ```
 Field Worker intake — four methods:
@@ -923,6 +937,8 @@ npm install
 | twilio | WhatsApp + SMS intake and notifications |
 | @google/generative-ai | Gemini AI (ready, using Groq via Person A) |
 | cors | Allow frontend to connect to backend |
+| i18next | Core internationalization framework |
+| react-i18next | React bindings for i18n |
 
 ### Environment Variables
 
