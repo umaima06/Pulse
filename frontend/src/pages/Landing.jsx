@@ -69,23 +69,26 @@ function Landing() {
   }, [])
 
   // ─── Voice AI simulation ──────────────────────────────────────────────────────
-  const startCall = () => {
-    setCallActive(true)
-    const script = [
-      '📞 Connecting to PULSE AI...',
-      '🎤 Listening...',
-      '🧠 Analyzing voice input...',
-      '🚨 Flood emergency detected',
-      '📍 Location identified: Hyderabad',
-      '🚀 Dispatching volunteer...',
-    ]
-    let i = 0
-    const interval = setInterval(() => {
-      setCallText(script[i])
-      i++
-      if (i >= script.length) clearInterval(interval)
-    }, 1200)
+const startCall = async () => {
+  setCallActive(true)
+  setCallText('📞 Requesting call...')
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/start-call`, {
+      method: 'POST'
+    })
+
+    if (res.ok) {
+      setCallText('📞 Call incoming... check your phone 👀')
+    } else {
+      setCallText('❌ Failed to trigger call')
+    }
+
+  } catch (err) {
+    console.error(err)
+    setCallText('❌ Backend not reachable')
   }
+}
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#0f172a,_#020617)] text-white animate-fadeIn">
