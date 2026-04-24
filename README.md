@@ -373,9 +373,9 @@ At scale, this means faster response times, smarter resource allocation, less du
 
 | Role | Contributor | Responsibilities |
 |---|---|---|
-| **AI/ML Lead** | Umaima (@umaima06) | Flask AI microservice, Groq + Gemini integration, crisis analysis pipeline, clustering, volunteer matching, report generation, proof verification, predictive alerts, seed data |
-| **Backend Lead** | Zunairah (@Zunairah-k) | Node.js + Express server, Twilio WhatsApp + SMS + IVR, Firebase Auth + Firestore, volunteer coordination system, chatbot development, cluster action API, urgency escalation cron, NGO admin controls, multi-NGO isolation, multilingual i18n frontend |
-| **Frontend Lead** | Alizah (@alizahh-7) | React + Vite dashboard, Google Maps integration, all 10 pages, UI design system, Firebase Hosting deployment, real-time Firestore integration, volunteer portal, analytics, demo trigger |
+| **AI/ML Lead** | [Umaima](https://https://github.com/umaima06) | Flask AI microservice, Groq + Gemini integration, crisis analysis pipeline, clustering, volunteer matching, report generation, proof verification, predictive alerts, seed data |
+| **Backend Lead** | [Zunairah](https://https://github.com/Zunairah-k) | Node.js + Express server, Twilio WhatsApp + SMS + IVR, Firebase Auth + Firestore, volunteer coordination system, chatbot development, cluster action API, urgency escalation cron, NGO admin controls, multi-NGO isolation, multilingual i18n frontend |
+| **Frontend Lead** | [Alizah](https://https://github.com/alizahh-7) | React + Vite dashboard, Google Maps integration, all 10 pages, UI design system, Firebase Hosting deployment, real-time Firestore integration, volunteer portal, analytics, demo trigger |
 
 ---
 
