@@ -62,206 +62,217 @@ PULSE/
 └── README.md
 ```
 # Umaima
-@ day 1----
-Step 1 — Get your Gemini API key
-step 2 — Three Python files, all running cleanly:
-intelligence.py — Gemini converts any messy input to structured JSON ✓
-clustering.py — Groups nearby same-type reports into clusters ✓
-matching.py — Ranks volunteers by skill + distance + availability ✓
-step 3- install :
-1. python -m venv venv, .\venv\Scripts\activate
-2. pip install google-genai
+# PULSE — AI Layer
 
-@ day 2----
-install:
-1. pip install flask flask-cors
-2. pip install groq
-used Nominatim which is OpenStreetMap's geocoder. Works for any location in India or anywhere in the world. No API key, no billing, completely free.
+## Overview
+The AI layer is the core intelligence system of *PULSE*. It transforms unstructured, real-world inputs (WhatsApp messages, SMS, voice transcripts, manual reports) into structured, actionable crisis data for NGOs.
 
-@ day 3,4,5,6 ------
-# Overview
-Built the complete AI brain for PULSE X. Every field report that enters 
-the system — WhatsApp, SMS, or manual intake — passes through this layer 
-before anything else happens.
+This system automates:
+- Crisis understanding  
+- Urgency scoring  
+- Location extraction  
+- Report clustering  
+- Volunteer matching  
+- Predictive alerts  
+- Proof verification  
 
-@ random day 1---
-🔧 Updates & Fixes (Today)
-🗺️ Map Fix
-Resolved issues with map rendering and data display. The map now correctly reflects real-time report/cluster data.
-Fixed incorrect/missing markers on the map
-Added blue dots to represent individual reports that are not part of any cluster
-This ensures:
-No report is visually lost
-Both clustered and non-clustered cases are clearly visible
-
-🎬 Demo System Overhaul
-Rebuilt the demo flow to make testing and presentations reliable:
-Added a demo trigger that generates fresh reports every time (food, water, medical)
-Ensured demo data is randomized and realistic
-Implemented a clear demo feature that removes all demo data from:
-Frontend UI
-Firestore database
-Eliminated stale/duplicate demo data issues
-
-📊 Dynamic Dashboard (Navbar Fix)
-Previously, dashboard values (like counts/stats) were hardcoded.
-Now:
-All navbar data is fetched dynamically from backend
-Reflects real-time system state
-Improves accuracy and scalability
-
-📱 Twilio WhatsApp Alert Fix
-Fixed a critical issue where volunteers were receiving incorrect alerts:
-Before:
-Every alert showed "urgent water crisis" regardless of actual issue ❌
-After:
-Alerts now correctly reflect:
-Actual need type (water / food / medical)
-Relevant report-level details
-Ensures volunteers receive accurate and actionable information ✅
-📩 New Message Format
-Volunteers now receive messages in this format:
-🚨 PULSE TASK ASSIGNED
-📍 Location: <Exact Location>
-⚠️ Issue: <Water / Food / Medical>
-👥 People affected: <Number>
-📝 Details: <Summary (if available)>
-Reply ACCEPT to confirm.
-This removes ambiguity and ensures the volunteer knows exactly where to go and what to handle.
-
-@random day 2---
-🤖 AI-Powered Proof Verification (Gemini Vision)
-
-This system uses AI-based visual verification to ensure that volunteer-submitted proof images genuinely reflect completed field tasks. Instead of relying on basic checks like whether an image exists online, the backend sends the submitted image to Gemini Vision API, which analyzes the actual visual content.
-
-The AI evaluates whether the image matches the assigned task context. For example, if the task involves water distribution, the system verifies the presence of relevant elements such as water containers, distribution activity, volunteers in action, or people receiving aid. It also assesses authenticity signals (e.g., real field conditions vs. stock or staged images) and contextual plausibility.
-
-Only when the AI confirms that the image is both relevant and authentic is the task marked as completed. This approach ensures higher reliability, prevents fraudulent submissions, and enables trustworthy, automated verification at scale without manual intervention.
-
-🔑 Gemini API Setup
-Go to https://aistudio.google.com/
-Sign in and generate your Google Gemini API Key
-Copy the API key
-Add it to your environment file:
-GEMINI_API_KEY="YOUR_API_KEY"
-
-📌 Add this in:
-
-backend/.env
-ai/.env
-
-Make sure to restart your server after adding the key.
-
-# What I Built
-
-# Core AI Pipeline
-- **intelligence.py** — Takes any raw text in any Indian language (Hindi, 
-  Telugu, Tamil, English, mixed) and returns structured crisis data using 
-  Groq's Llama 3.3 70B model with Gemini 2.5 Flash as automatic fallback
-- **clustering.py** — Groups nearby reports of the same crisis type into 
-  clusters using Haversine distance formula (30km radius)
-- **matching.py** — Ranks available volunteers by skill match, distance, 
-  and availability for each crisis cluster
-- **report_generator.py** — Generates professional 3-paragraph NGO impact 
-  reports and 2-sentence predictive pre-alerts using Groq
-- **config.py** — All settings in one place. Crisis types, urgency rules, 
-  skill matrix, thresholds — nothing hardcoded anywhere else
-
-  # Frontend Integration (Done by Person A)
-
-Connected all AI endpoints to the React frontend:
-
-- **Dashboard.jsx** — clusters now sorted by urgency, reports filtered 
-  to analyzed only, cluster detail panel shows villages/people/days instead 
-  of raw coordinates
-- **Reports.jsx** — shows only analyzed reports ordered by newest first
-- **Intake.jsx** — manual report form now calls `/analyze` directly, 
-  gets real AI analysis back, saves enriched data straight to Firestore 
-  with real coordinates. Shows urgency score and summary to coordinator 
-  immediately after submission.
-- **firebase.js** — confirmed working with project credentials
-- **Firestore indexes** — created composite indexes for 
-  `status + timestamp` and `status + location_lat` queries
-
-# API Server
-- **app.py** — Flask server exposing all AI functions as HTTP endpoints 
-  on port 5000. Node.js backend and React frontend both call this.
-
-# Demo Data
-- **seed_data.py** — Seeds 25 realistic crisis reports across 15 Indian 
-  states and 20 volunteer profiles into Firestore
-
-# API Endpoints
-
-| Endpoint | Does what |
-|----------|-----------|
-| GET /health | Check server is alive |
-| POST /analyze | Any text → structured crisis data + real coordinates |
-| POST /cluster | Array of reports → grouped crisis clusters |
-| POST /match | Cluster + volunteers → ranked matches |
-| POST /escalate | Recalculates urgency scores over time |
-| POST /generate-report | Cluster data → 3-paragraph NGO report |
-| POST /pre-alert | Region + pattern → predictive warning |
-
-# PULSE X — AI Layer (Person A)
-
-
-## What This Does
-
-Takes any field report — a WhatsApp message in Telugu, a Hindi voice 
-transcript, a vague SMS — and automatically:
-
-1. Understands what crisis it is (water / food / medical)
-2. Scores how urgent it is (1–100)
-3. Finds the real coordinates of the location anywhere in India
-4. Groups nearby same-type reports into crisis clusters
-5. Matches the best available volunteer to each cluster
-6. Writes a professional NGO impact report
-
-Zero manual work. Fully automatic.
+It eliminates manual coordination and enables real-time, data-driven disaster response.
 
 ---
 
+## What It Does
+
+| Step | Action |
+|------|--------|
+| 1 | Reads any field report in Hindi, Telugu, Tamil, English, or mixed language |
+| 2 | Identifies the crisis type — water, food, or medical |
+| 3 | Calculates an urgency score from 1 to 100 |
+| 4 | Geocodes the exact location anywhere in India |
+| 5 | Groups nearby same-type reports into crisis clusters |
+| 6 | Matches the best available volunteer by skill and distance |
+| 7 | Generates professional NGO impact reports |
+| 8 | Verifies volunteer proof photos using Gemini Vision |
+
+---
+## ⚙️ Architecture
+
+```
+Input Sources (WhatsApp / SMS / IVR / Form) ↓ AI Layer (Flask API) ↓ Structured Crisis Intelligence ↓ Backend (Node.js) → Firestore → Frontend Dashboard
+```
+---
+## 🚀 Core Capabilities
+
+### 1. 🧾 Intelligent Report Processing (/analyze)
+- Accepts raw text in any language (Hindi, Telugu, Tamil, English, mixed)
+- Uses LLMs to extract:
+  - Crisis type (water / food / medical)
+  - Urgency score (0–100)
+  - Affected population
+  - Location (converted to coordinates)
+  - Clean summary  
+
+✅ Works even with messy, incomplete, or informal inputs  
+
+---
+
+### 2. 📍 Geolocation (OpenStreetMap - Nominatim)
+- Converts location text → real latitude & longitude  
+- Works across India without API cost  
+- Enables map visualization + clustering  
+
+---
+
+### 3. 🔗 Crisis Clustering (/cluster)
+- Groups nearby reports of the same type  
+- Uses Haversine distance formula (~30km radius)  
+
+*Outputs:*
+- Cluster centroid  
+- Combined urgency  
+- Alert level (LOW / MEDIUM / HIGH)  
+
+✅ Prevents duplicate efforts  
+✅ Identifies real crisis zones  
+
+---
+
+### 4. 🤝 Volunteer Matching (/match)
+Ranks volunteers using:
+- Skill match  
+- Distance from crisis  
+- Availability  
+
+*Outputs:*
+- Ranked volunteer list  
+- Match scores  
+- Distance (km)  
+
+✅ Ensures fastest and most relevant response  
+
+---
+
+### 5. ⏱️ Urgency Escalation (/escalate)
+- Automatically increases urgency over time if unresolved  
+
+*Factors:*
+- Hours since report  
+- Crisis type  
+
+✅ Prevents neglected crises  
+
+---
+
+### 6. 📊 AI Report Generation (/generate-report)
+- Converts cluster data into professional NGO reports  
+
+*Useful for:*
+- Decision making  
+- Documentation  
+- Impact reporting  
+
+---
+
+### 7. ⚠️ Predictive Alerts (/pre-alert) (yet to work)
+- Detects patterns in historical data  
+- Generates early warnings for future crises  
+
+*Example:*
+> “High probability of water shortage in Region X based on past trends.”
+
+---
+
+### 8. 💬 Conversational AI Assistant (/ask-ai)
+- Powered by LLM (Groq - LLaMA 3.3)  
+
+Answers:
+- System-related queries  
+- NGO workflow questions  
+- General user queries  
+
+---
+
+### 9. 🖼️ AI Proof Verification (Gemini Vision) (/verify-proof)
+Validates volunteer-submitted images  
+
+*Checks:*
+- Content matches task  
+- Real field photo vs stock image  
+- Context plausibility  
+
+*Outputs:*
+- Verification status  
+- Confidence score  
+- Fraud risk level  
+
+✅ Prevents fake task completion  
+✅ Ensures accountability  
+
+When a volunteer marks a task as done, PULSE does not simply accept their word. The volunteer is asked to submit a photo as proof. The image is sent to Gemini Vision, which runs three checks:
+
+1. **Content match** — Does the image show activity relevant to the task type, such as water distribution, food delivery, or medical aid?
+2. **Authenticity** — Does this look like a real field photo taken on a phone camera, or a stock image downloaded from the internet?
+3. **Context plausibility** — Does the setting match a genuine crisis scenario in India?
+
+All three checks must pass for the task to be marked as verified. If the fraud risk is high, the task is rejected and the volunteer is asked to resubmit. If the AI is unavailable, the task is flagged for manual review by the NGO coordinator.
+
+---
 ## Tech Stack
 
 | Tool | Purpose |
 |------|---------|
 | Python 3.x | Core language |
-| Groq (llama-3.3-70b) | Primary AI — analysis + report writing |
-| Gemini 2.5 Flash | Auto fallback if Groq fails |
-| OpenStreetMap Nominatim | Free geocoding — any location in India |
-| Flask | API server (port 5000) |
+| Groq — llama-3.3-70b-versatile | Primary AI model for analysis and report writing |
+| Gemini 2.5 Flash | Automatic fallback if Groq fails + image verification |
+| OpenStreetMap Nominatim | Free geocoding for any location in India |
+| Flask | API server running on port 5000 |
 | Firebase Firestore | Database |
 
 ---
 
-## Files
+## AI Pipeline Modules
+
 | File | What it does |
 |------|-------------|
-| intelligence.py | Reads any report → extracts need type, urgency, location, coordinates |
-| clustering.py | Groups nearby same-type reports into crisis clusters |
-| matching.py | Ranks volunteers by skill + distance + availability |
-| config.py | All settings in one place — change anything here |
-| app.py | Flask server exposing everything as API endpoints |
-| report_generator.py | Generates professional NGO impact reports |
-| seed_data.py | Loads 25 demo reports + 20 volunteers into Firestore |
+| `intelligence.py` | Core analysis — reads any report, extracts need type, urgency score, location, and coordinates |
+| `clustering.py` | Groups nearby same-type reports into crisis clusters using Haversine distance within 30km radius |
+| `matching.py` | Ranks available volunteers by skill match, distance, and availability |
+| `report_generator.py` | Generates 3-paragraph NGO impact reports and 2-sentence predictive pre-alerts |
+| `config.py` | All settings in one place — crisis types, urgency rules, skill matrix, thresholds |
+| `app.py` | Flask server exposing all AI functions as HTTP endpoints |
+| `seed_data.py` | Seeds 25 demo crisis reports and 20 volunteer profiles into Firestore |
 
-### Installation
+---
 
-**1. Navigate to the ai folder**
+## API Endpoints
+
+| Method | Endpoint | What it does |
+|--------|----------|-------------|
+| GET | `/health` | Check server is running |
+| POST | `/analyze` | Any text → structured crisis data + real coordinates |
+| POST | `/cluster` | Array of reports → grouped crisis clusters |
+| POST | `/match` | Cluster + volunteers → ranked volunteer matches |
+| POST | `/escalate` | Recalculates urgency scores for unresolved reports |
+| POST | `/generate-report` | Cluster data → 3-paragraph NGO impact report |
+| POST | `/pre-alert` | Region + pattern → predictive crisis warning |
+| POST | `/verify-proof` | Volunteer image → AI fraud detection + verification result |
+
+---
+
+## Installation
+
+**1. Navigate to the AI folder**
 ```bash
 cd ai
 ```
 
-**2. Create and activate virtual environment**
+**2. Create and activate a virtual environment**
 ```bash
-# Create
+# Windows
 python -m venv venv
-
-# Activate — Windows
 venv\Scripts\activate
 
-# Activate — Mac/Linux
+# Mac / Linux
+python -m venv venv
 source venv/bin/activate
 ```
 
@@ -270,60 +281,51 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**4. Create your .env file**
+**4. Create a `.env` file**
+```bash
+GROQ_API_KEY=your_groq_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
-GROQ_API_KEY=your_groq_key_here
-GEMINI_API_KEY=your_gemini_key_here
-```
 
-Get Groq key free → console.groq.com  
-Get Gemini key free → aistudio.google.com/apikey
+Get your Groq key free at console.groq.com  
+Get your Gemini key free at aistudio.google.com/apikey
 
-**5. Add serviceAccountKey.json**
+**5. Ensure `serviceAccountKey.json` exists in the backend folder**
 
-Make sure `../backend/serviceAccountKey.json` exists.  
-(Person B shares this — never commit it to GitHub)
+This file is shared by the backend team and should never be committed to GitHub.
 
 ---
 
 ## Running the Server
+
 ```bash
 python app.py
 ```
 
-Server starts at: http://localhost:5000  
-Health check: http://localhost:5000/health
+The server starts at `http://localhost:5000`
 
-> Keep this running alongside Person B's Node server (port 3000)
+Health check: `http://localhost:5000/health`
 
----
-
-## API Endpoints
-
-| Method | Endpoint | What it does |
-|--------|----------|-------------|
-| GET | /health | Check server is running |
-| POST | /analyze | Any text → structured crisis data + coordinates |
-| POST | /cluster | Array of reports → grouped clusters |
-| POST | /match | Cluster + volunteers → ranked matches |
-| POST | /escalate | Recalculates urgency for unresponded reports |
-| POST | /generate-report | Cluster data → 3-paragraph NGO report |
-| POST | /pre-alert | Region + pattern → predictive warning |
+Keep this running alongside the Node.js backend on port 3000.
 
 ---
-
-## What Person C reads from Firestore
-- /clusters → centroid_lat, centroid_lon, combined_urgency, alert_level
-- /reports → summary, need_type, urgency_score, location_lat, location_lng
-- Call POST /generate-report to get NGO report for any cluster
 
 ## Demo Data
+
 ```bash
-python seed_data.py seed    # load demo data
-python seed_data.py reset   # fresh start
+python seed_data.py seed    # Load 25 demo reports + 20 volunteers
+python seed_data.py clear   # Remove all seeded data
+python seed_data.py reset   # Clear and reload fresh
 ```
+---
 
+## Deployment
 
+-Hosted on Railway (Flask API)
+-Flow:
+Frontend (Firebase) → Backend (Railway) → AI (Railway)
+
+---
 # Zunairah
 # PULSE - Backend Documentation
 ## Backend (Person B)
