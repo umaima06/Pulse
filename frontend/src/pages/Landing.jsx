@@ -69,26 +69,40 @@ function Landing() {
   }, [])
 
   // ─── Voice AI simulation ──────────────────────────────────────────────────────
+const [ivrPhone, setIvrPhone] = useState('')
+
 const startCall = async () => {
+  if (!ivrPhone.trim()) {
+    setCallActive(true)
+    setCallText('⚠️ Please enter your phone number first')
+    return
+  }
+
   setCallActive(true)
   setCallText('📞 Requesting call...')
 
   try {
     const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/start-call`, {
-      method: 'POST'
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: ivrPhone.trim() })
     })
-
-    if (res.ok) {
-      setCallText('📞 Call incoming... check your phone 👀')
-    } else {
-      setCallText('❌ Failed to trigger call')
-    }
-
+if (res.ok) {
+  setCallText('📞 Call incoming on your phone! 👀')
+} else {
+  const data = await res.json()
+  if (data.error?.includes('not a verified')) {
+    setCallText('⚠️ Number not verified with Twilio. Upgrade to call any number.')
+  } else {
+    setCallText(`❌ ${data.error || 'Failed to trigger call'}`)
+  }
+}
   } catch (err) {
     console.error(err)
     setCallText('❌ Backend not reachable')
   }
 }
+
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#0f172a,_#020617)] text-white animate-fadeIn">
@@ -163,27 +177,47 @@ const startCall = async () => {
 
         <p className="text-xs text-gray-500 mb-6">{t('hero_realtime')}</p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button
-            onClick={startCall}
-            className="bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-600 hover:to-green-500 shadow-[0_0_25px_rgba(16,185,129,0.5)] text-white font-bold px-8 py-4 rounded-xl text-lg transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
-          >
-            {t('ivr_btn')}
-          </button>
+        {/* ── CTA Row: all 4 elements equal h-14 in one flex row ── */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch">
 
-          <Link
-            to="/get-started"
-            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-4 rounded-xl text-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center"
-          >
-            {t('nav_get_started')}
-          </Link>
+            <input
+              type="tel"
+              placeholder="+91XXXXXXXXXX"
+              value={ivrPhone}
+              onChange={(e) => setIvrPhone(e.target.value)}
+              className="h-14 w-44 px-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-400 transition-all"
+            />
 
-          <button
-            onClick={() => document.getElementById('how').scrollIntoView({ behavior: 'smooth' })}
-            className="border border-gray-600 hover:border-orange-400 text-gray-300 hover:text-white font-medium px-8 py-4 rounded-xl text-lg transition-all flex items-center justify-center hover:scale-105 active:scale-95 cursor-pointer"
-          >
-            {t('how_btn')}
-          </button>
+            <button
+              onClick={startCall}
+              className="h-14 flex items-center justify-center bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-600 hover:to-green-500 shadow-[0_0_25px_rgba(16,185,129,0.5)] text-white font-bold px-8 rounded-xl text-base transition-all transform hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              {t('ivr_btn')}
+            </button>
+
+            <Link
+              to="/get-started"
+              className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 rounded-xl text-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center whitespace-nowrap"
+            >
+              {t('nav_get_started')}
+            </Link>
+
+            <button
+              onClick={() => document.getElementById('how').scrollIntoView({ behavior: 'smooth' })}
+              className="h-14 border border-gray-600 hover:border-orange-400 text-gray-300 hover:text-white font-medium px-8 rounded-xl text-lg transition-all flex items-center justify-center hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              {t('how_btn')}
+            </button>
+
+          </div>
+
+          {/* Caption below the full row */}
+          <p className="text-gray-500 text-xs text-center max-w-xs">
+            Enter your number to receive a live IVR demo call.
+            Currently in production phase - only Twilio-verified numbers
+            can receive calls. <span className="text-emerald-400">Upgrade to paid removes this limit.</span>
+          </p>
         </div>
 
         {/* Voice AI UI */}
