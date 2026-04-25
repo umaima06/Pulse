@@ -329,7 +329,7 @@ Frontend (Firebase) → Backend (Railway) → AI (Railway)
 # Zunairah
 # PULSE - Backend Documentation
 ## 🔗 Backend (Person B)
-separate Backend for deployement: https://github.com/Zunairah-k/pulse-backend]
+separate Backend for deployement: https://github.com/Zunairah-k/pulse-backend
 
 ### What I Built
 - Firebase + Firestore database setup with 4 collections
