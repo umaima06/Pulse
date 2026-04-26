@@ -6,24 +6,26 @@
 ![Backend](https://img.shields.io/badge/Backend-Railway-green)
 ![AI Service](https://img.shields.io/badge/AI%20Service-Railway-purple)
 [![GitHub](https://img.shields.io/badge/GitHub-Public%20Repo-yellow)](https://github.com/umaima06/Pulse)
+![Status](https://img.shields.io/badge/Status-Live%20%26%20Deployed-brightgreen)
+![SDG](https://img.shields.io/badge/UN%20SDG-11.5%20%7C%201.5%20%7C%203.8-blue)
 
 ---
 ## 🌍 UN SDG Alignment
 
 PULSE is built in direct response to three United Nations Sustainable Development Goals:
 
-| SDG | Target | How PULSE Contributes |
-|---|---|---|
-| **SDG 11.5** | Reduce deaths and losses from disasters for vulnerable communities | Reduces coordination delay from 4–6 hours to under 30 seconds — the window where lives are lost |
-| **SDG 1.5** | Build resilience of the poor to climate-related disasters | Serves zero-literacy, zero-smartphone, zero-English users through IVR and multilingual WhatsApp |
-| **SDG 3.8** | Universal access to essential healthcare services | Medical emergency track routes health crises to skilled volunteers automatically |
+| SDG | How PULSE Contributes |
+|---|---|
+| **SDG 11.5** — Disaster response | Cuts dispatch from 4–6 hours to 30 seconds — the window where lives are lost |
+| **SDG 1.5** — Climate resilience | Serves zero-literacy, zero-English users through IVR and WhatsApp on 2G |
+| **SDG 3.8** — Healthcare access | Medical emergencies routed to skilled volunteers automatically |
 
-> *"By 2030, significantly reduce the number of deaths and the number of people affected by disasters, with a focus on protecting the poor and people in vulnerable situations."*
-> — UN SDG 11.5. This is what we built PULSE for.
+
+> This is what we built PULSE for.
 
 ---
 
-## 🌍 The Problem
+## ⚠️ The Problem
 
 NGOs working in rural and semi-urban India face a coordination crisis that technology has largely ignored.
 
@@ -67,7 +69,7 @@ The NGO Admin monitors everything on a live Google Maps dashboard — color-code
 | 🌐 Frontend (Website) | https://pulse-11de7.web.app |
 
 ---
-## ⚡ End-to-End Pipeline 
+## ⚡ End-to-End Pipeline (how system works)
 
 ```
 Field Worker (WhatsApp / SMS / IVR / Bot)
@@ -93,20 +95,32 @@ NGO Admin marks cluster Resolved → resolution note + timestamp stored
 Hourly cron escalates urgency on unresolved clusters over time
 ```
 ---
-### Why Google — Every Tool Chosen Deliberately
+## 📖 Usage Examples (how to use) 
 
-| Google Tool | Why specifically used |
-|---|---|
-| Firebase Firestore + onSnapshot | Zero-latency real-time sync — crisis data appears on dashboard in under 1 second, no polling, no refresh |
-| Firebase Auth | Stateless NGO login without maintaining a separate user database. Org name stored in Firestore, shown in navbar |
-| Firebase Hosting | CDN-distributed React frontend with automatic SSL and global edge delivery, zero config |
-| Google Maps API | Urgency-colored cluster markers with InfoWindows. Volunteer dispatch includes exact GPS directions link |
-| Gemini 2.5 Flash | Multimodal Vision API for proof verification — checks task match AND fraud detection. Also serves as AI analysis fallback |
+**Reporting a crisis via WhatsApp:**
+Send any message to the PULSE WhatsApp number in any language.
+- Vague message: `"help chahiye"` → bot guides you through 4 steps
+- Detailed message: `"3 din se paani nahi, Abids mein, 50 log hain"` → goes directly to AI analysis, no bot needed
+- Response time: under 30 seconds from message to volunteer assigned
 
-**Future Google integration roadmap:**
-- **Vertex AI** — replace Haversine clustering with geospatial ML models for smarter crisis zone prediction
-- **Google Cloud Functions** — replace Railway cron jobs for serverless auto-scaling escalation
-- **Looker Studio** — NGO and government impact reporting dashboards pulling live Firestore data
+**Reporting via IVR (voice call):**
+Call the PULSE number → select language (1-4) → press crisis type (1/2/3) → speak your report → done. Zero smartphone required.
+
+**NGO Admin workflow:**
+1. Open dashboard at https://pulse-11de7.web.app
+2. Login with your NGO credentials
+3. Watch crisis clusters appear live on the map
+4. Click any cluster → view urgency score, affected people, location
+5. Assign volunteer → WhatsApp + SMS sent automatically with Google Maps link
+6. Track: Assigned → Accepted → Proof Awaiting → Verified → Resolved
+
+**Volunteer workflow:**
+1. Visit https://pulse-11de7.web.app/my-tasks
+2. Enter your phone number — no login required
+3. Toggle availability On Duty / Off Duty
+4. Receive WhatsApp task notification → reply ACCEPT
+5. Complete task → reply DONE → submit proof photo
+6. AI verifies photo → task marked complete automatically
 
 ---
 
@@ -214,36 +228,39 @@ Hourly cron escalates urgency on unresolved clusters over time
 ## 🛠️ Tech Stack
 
 ### Frontend
-| Technology | Purpose |
-|---|---|
-| React + Vite | UI framework |
-| Tailwind CSS + Framer Motion | Styling and animations |
-| Firebase Hosting | Production deployment |
-| Firebase Firestore (onSnapshot) | Real-time data sync |
-| Firebase Auth | NGO authentication |
-| Google Maps API | Live cluster map visualization |
-| i18next + react-i18next | 7-language frontend |
-| react-router-dom | Page routing and navigation |
+| Technology | Purpose | Why This Google Tool |
+|---|---|---|
+| React + Vite | UI framework | — |
+| Tailwind CSS + Framer Motion | Styling + animations | — |
+| **Firebase Hosting** | Production deployment | CDN-distributed, automatic SSL, global edge delivery |
+| **Firebase Firestore (onSnapshot)** | Real-time data sync | Zero-latency sync — crisis data on dashboard in under 1 second, no polling |
+| **Firebase Auth** | NGO authentication | Stateless auth, no separate user database needed |
+| **Google Maps API** | Live cluster map | Urgency-colored markers, exact GPS directions link per dispatch |
+| i18next + react-i18next | 7-language frontend | — |
+| react-router-dom | Page routing | — |
 
 ### Backend
-| Technology | Purpose |
-|---|---|
-| Node.js + Express.js | REST API server (21+ routes) |
-| Twilio | WhatsApp + SMS intake and volunteer notifications, IVR voice |
-| Firebase Admin SDK | Firestore operations + Auth verification |
-| Gemini Vision API | Volunteer proof photo verification |
-| node-cron | Hourly urgency escalation scheduler |
-| Railway | Production deployment |
+| Technology | Purpose | Why This Google Tool |
+|---|---|---|
+| Node.js + Express.js | REST API server (21+ routes) | — |
+| Twilio | WhatsApp + SMS + IVR voice | — |
+| **Gemini Vision API** | Proof photo verification | Multimodal — checks task match AND fraud detection in one API call |
+| Firebase Admin SDK | Firestore + Auth operations | — |
+| node-cron | Hourly escalation scheduler | — |
+| Railway | Production deployment | — |
 
 ### AI Microservice
-| Technology | Purpose |
-|---|---|
-| Python 3.x + Flask | AI API server |
-| Groq (llama-3.3-70b-versatile) | Primary AI — crisis analysis, urgency scoring, report generation |
-| Gemini 2.5 Flash | Auto-fallback if Groq fails |
-| OpenStreetMap Nominatim | Free geocoding for any location in India |
-| Haversine formula | Geographic clustering (30km radius) |
-| Railway | Production deployment |
+| Technology | Purpose | Why This Google Tool |
+|---|---|---|
+| Python 3.x + Flask | AI API server | — |
+| Groq (llama-3.3-70b-versatile) | Crisis analysis + report generation | — |
+| **Gemini 2.5 Flash** | Auto-fallback AI | Multimodal — handles both text analysis and Vision when Groq is unavailable |
+| OpenStreetMap Nominatim | Free geocoding | — |
+| Haversine formula | Geographic clustering (30km radius) | — |
+| Railway | Production deployment | — |
+
+> **Future Google integration:** Vertex AI → smarter geospatial clustering · Google Cloud Functions → serverless escalation cron · Looker Studio → NGO impact reporting dashboards
+
 
 ### Database
 | Collection | Purpose |
@@ -402,14 +419,40 @@ PULSE changes this by making it possible for:
 At scale, this means faster response times, smarter resource allocation, less duplication of effort, and — most importantly — fewer people waiting in crisis.
 
 ---
+## 🗺️ Roadmap
+
+**Now — live and deployed**
+- 4-channel multilingual intake (WhatsApp, SMS, IVR, bot)
+- AI crisis analysis, clustering, volunteer matching, proof verification
+- Predictive alerts, real-time dashboard, multi-NGO isolation
+
+**Next (0–3 months)**
+- Offline-first mobile app — reports queue locally, sync when internet returns
+- SMS-only mode for 2G feature phones
+- Volunteer reputation scoring based on response time and proof quality
+- Migrate escalation cron to Google Cloud Functions
+
+**Medium term (3–12 months)**
+- Expand from 3 crisis types to 10+ including shelter, sanitation, elderly care
+- Vertex AI to replace Haversine clustering with geospatial ML
+- State government API integration for district disaster management systems
+- Cross-NGO resource sharing — surplus volunteers routed across organizations
+
+**Long term**
+- Open-source release for global NGO self-hosting across South Asia and Sub-Saharan Africa
+- Looker Studio dashboards for government and donor impact reporting
+- Google.org partnership for institutional scaling
+- What UPI did for payments — PULSE for community crisis response
+  
+---
 
 ## 👥 Team & Contributions
 
 | Role | Contributor | Responsibilities |
 |---|---|---|
-| **AI/ML Lead** | [Umaima](https://https://github.com/umaima06) | Flask AI microservice, Groq + Gemini integration, crisis analysis pipeline, clustering, volunteer matching, report generation, proof verification, predictive alerts, seed data |
-| **Backend Lead** | [Zunairah](https://https://github.com/Zunairah-k) | Node.js + Express server, Twilio WhatsApp + SMS + IVR, Firebase Auth + Firestore, volunteer coordination system, chatbot development, cluster action API, urgency escalation cron, NGO admin controls, multi-NGO isolation, multilingual i18n frontend |
-| **Frontend Lead** | [Alizah](https://https://github.com/alizahh-7) | React + Vite dashboard, Google Maps integration, all 10 pages, UI design system, Firebase Hosting deployment, real-time Firestore integration, volunteer portal, analytics, demo trigger |
+| **AI/ML Lead** | [Umaima](https://github.com/umaima06) | Flask AI microservice, Groq + Gemini integration, crisis analysis pipeline, clustering, volunteer matching, report generation, proof verification, predictive alerts, seed data |
+| **Backend Lead** | [Zunairah](https://github.com/Zunairah-k) | Node.js + Express server, Twilio WhatsApp + SMS + IVR, Firebase Auth + Firestore, volunteer coordination system, chatbot development, cluster action API, urgency escalation cron, NGO admin controls, multi-NGO isolation, multilingual i18n frontend |
+| **Frontend Lead** | [Alizah](https://github.com/alizahh-7) | React + Vite dashboard, Google Maps integration, all 10 pages, UI design system, Firebase Hosting deployment, real-time Firestore integration, volunteer portal, analytics, demo trigger |
 
 ---
 
