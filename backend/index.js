@@ -4,7 +4,8 @@ const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
 const twilio = require('twilio'); // MUST COME BEFORE CLIENT
-const serviceAccount = require('./serviceAccountKey.json');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.get('/test', (req, res) => {
@@ -12,19 +13,62 @@ app.get('/test', (req, res) => {
 });
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(cors());
+
+const defaultAllowedOrigins = [
+  'https://pulse-11de7.web.app',
+  'https://pulse-11de7.firebaseapp.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+];
+
+const allowedOrigins = [
+  ...defaultAllowedOrigins,
+  ...(process.env.CORS_ORIGINS || '').split(',').map(origin => origin.trim()).filter(Boolean)
+];
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked origin: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
 );
 
+function loadFirebaseCredential() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  }
+
+  const localServiceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
+  if (fs.existsSync(localServiceAccountPath)) {
+    return require(localServiceAccountPath);
+  }
+
+  throw new Error('Missing Firebase Admin credentials. Set FIREBASE_SERVICE_ACCOUNT_JSON or add backend/serviceAccountKey.json locally.');
+}
+
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(loadFirebaseCredential())
 });
 
 const db = admin.firestore();
 const PORT = process.env.PORT || 3000;
+const AI_BASE_URL = (process.env.AI_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+const FRONTEND_PUBLIC_URL = (process.env.FRONTEND_PUBLIC_URL || process.env.PUBLIC_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+const BACKEND_PUBLIC_URL = (process.env.BACKEND_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+const TWILIO_WEBHOOK_BASE_URL = (process.env.TWILIO_WEBHOOK_BASE_URL || process.env.NGROK_URL || BACKEND_PUBLIC_URL).replace(/\/$/, '');
+
+function aiEndpoint(route) {
+  return `${AI_BASE_URL}${route}`;
+}
 // ─── HELPER FUNCTIONS ───────────────────────────────────────────────
 
 // Distance between two coordinates in km
@@ -54,7 +98,7 @@ function safe(val, fallback = '') {
 
 async function enrichWithPULSEAI(reportId, rawText) {
   try {
-    const res = await fetch('http://localhost:5000/analyze', {
+    const res = await fetch(aiEndpoint('/analyze'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: rawText })
@@ -103,7 +147,7 @@ async function enrichWithPULSEAI(reportId, rawText) {
       affected_people: doc.data().affected_people || 0
     }));
 
-    const clusterRes = await fetch('http://localhost:5000/cluster', {
+    const clusterRes = await fetch(aiEndpoint('/cluster'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reports })
@@ -129,7 +173,7 @@ for (const cluster of clusterData.clusters) {
 }
 
 // Escalate urgency on old unresolved reports
-fetch('http://localhost:5000/escalate', {
+fetch(aiEndpoint('/escalate'), {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ reports: reports })
@@ -194,7 +238,7 @@ async function deleteConversation(senderNumber) {
 // Detect language using AI
 async function detectLanguage(text) {
   try {
-    const res = await fetch('http://localhost:5000/analyze', {
+    const res = await fetch(aiEndpoint('/analyze'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text })
@@ -388,7 +432,7 @@ async function processVerificationAsync(mediaUrl, senderNumber, task, taskId, vo
       `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
     ).toString('base64');
 
-    const verifyRes = await fetch('http://localhost:5000/verify-proof', {
+    const verifyRes = await fetch(aiEndpoint('/verify-proof'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1074,14 +1118,19 @@ app.post('/sms-reply', async (req, res) => {
 // START CALL
 app.post("/start-call", async (req, res) => {
   try {
+    const toPhone = req.body.phone || process.env.MY_PHONE_NUMBER;
+    if (!toPhone) {
+      return res.status(400).json({ error: 'Missing destination phone number' });
+    }
+
     await client.calls.create({
-      to: process.env.MY_PHONE_NUMBER,        // 👈 YOUR PHONE HERE
+      to: toPhone,
       from: process.env.TWILIO_REAL_NUMBER,  // 👈 TWILIO NUMBER
-      url: `${process.env.NGROK_URL}/incoming-call`
+      url: `${TWILIO_WEBHOOK_BASE_URL}/incoming-call`
      });
 //  twiml: `
 //         <Response>
-//           <Redirect>${process.env.NGROK_URL}/incoming-call</Redirect>
+//           <Redirect>${TWILIO_WEBHOOK_BASE_URL}/incoming-call</Redirect>
 //         </Response>
 //       `
 
@@ -1100,7 +1149,7 @@ app.all('/incoming-call', (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send(`
     <Response>
-      <Gather action="${process.env.NGROK_URL}/handle-language" method="POST" numDigits="1" timeout="10">
+      <Gather action="${TWILIO_WEBHOOK_BASE_URL}/handle-language" method="POST" numDigits="1" timeout="10">
         <Say language="hi-IN" voice="Polly.Aditi">
           Namaste. PULSE mein aapka swagat hai.
           Hindi ke liye 1 dabaiye.
@@ -1109,7 +1158,7 @@ app.all('/incoming-call', (req, res) => {
           English ke liye 4 dabaiye.
         </Say>
       </Gather>
-      <Redirect>${process.env.NGROK_URL}/incoming-call</Redirect>
+      <Redirect>${TWILIO_WEBHOOK_BASE_URL}/incoming-call</Redirect>
     </Response>
   `);
 });
@@ -1120,7 +1169,7 @@ app.all('/handle-language', (req, res) => {
   if (!digit) {
     return res.send(`
       <Response>
-        <Redirect>${process.env.NGROK_URL}/incoming-call</Redirect>
+        <Redirect>${TWILIO_WEBHOOK_BASE_URL}/incoming-call</Redirect>
       </Response>
     `);
   }
@@ -1142,13 +1191,13 @@ app.all('/handle-language', (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send(`
     <Response>
-      <Gather action="${process.env.NGROK_URL}/handle-keypress?lang=${lang.code}&amp;langname=${lang.name}" method="POST" numDigits="1" timeout="10">
+      <Gather action="${TWILIO_WEBHOOK_BASE_URL}/handle-keypress?lang=${lang.code}&amp;langname=${lang.name}" method="POST" numDigits="1" timeout="10">
         <Say language="${lang.code}">
           ${menus[lang.code]}
         </Say>
       </Gather>
        <!-- THIS SAVES YOUR CALL FROM DYING -->
-      <Redirect>${process.env.NGROK_URL}/handle-language</Redirect>
+      <Redirect>${TWILIO_WEBHOOK_BASE_URL}/handle-language</Redirect>
     </Response>
   `);
 });
@@ -1175,7 +1224,7 @@ app.all('/handle-keypress', (req, res) => {
     <Response>
       <Say language="${lang}">${confirms[lang]}</Say>
       <Record
-        action="${process.env.NGROK_URL}/handle-recording?need_type=${needType}&amp;lang=${lang}&amp;langname=${langname}"
+        action="${TWILIO_WEBHOOK_BASE_URL}/handle-recording?need_type=${needType}&amp;lang=${lang}&amp;langname=${langname}"
         method="POST"
         maxLength="30"
         playBeep="true"
@@ -1319,7 +1368,7 @@ async function runEscalation() {
       days_unmet:    doc.data().days_unmet || 0
     }));
 
-    const res = await fetch('http://localhost:5000/escalate', {
+    const res = await fetch(aiEndpoint('/escalate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reports })
@@ -1330,7 +1379,7 @@ async function runEscalation() {
       console.log(`⬆️ Hourly escalation: ${data.escalated_count} reports escalated`);
 
       // Re-run clustering after escalation
-      const clusterRes = await fetch('http://localhost:5000/cluster', {
+      const clusterRes = await fetch(aiEndpoint('/cluster'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reports })
@@ -1441,7 +1490,7 @@ app.post('/generate-report', async (req, res) => {
     }
 
     // Call Person A's report generator
-    const flaskRes = await fetch('http://localhost:5000/generate-report', {
+    const flaskRes = await fetch(aiEndpoint('/generate-report'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cluster, reports: reportsData })
@@ -1913,8 +1962,9 @@ app.post('/chat', async (req, res) => {
     const text = message.toLowerCase();
 
     // 🔥 Get number from ENV (NO HARDCODE)
-    const phone = process.env.TWILIO_PHONE_NUMBER;
-    const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+    const phone = process.env.TWILIO_PHONE_NUMBER || '+14155238886';
+    const frontendUrl = FRONTEND_PUBLIC_URL;
+    const backendUrl = BACKEND_PUBLIC_URL;
 
     // Convert to WhatsApp link format (remove +)
     const whatsappLink = `https://wa.me/${phone.replace('+', '')}`;
@@ -1948,7 +1998,7 @@ Please report it properly so we can act fast:
         actions: [
          { 
   label: "Open Intake Form", 
-  link: `${baseUrl}/intake?msg=${encodeURIComponent(message)}`
+  link: `${frontendUrl}/intake?msg=${encodeURIComponent(message)}`
 },
           { label: "WhatsApp Report", link: whatsappLink }
         ]
@@ -1958,7 +2008,7 @@ Please report it properly so we can act fast:
     // ─── 3. ANALYTICS MODE 📊 ─────────────────────────
 
 if (isAnalytics) {
-  const analyticsRes = await fetch(`${baseUrl}/analytics`);
+  const analyticsRes = await fetch(`${backendUrl}/analytics`);
   const data = await analyticsRes.json();
 
   const affected = data.analytics?.reports?.total_affected || 0;
@@ -1977,7 +2027,7 @@ Volunteers Active: ${volunteers}`
     // ─── 4. ALERT MODE ⚠️ ─────────────────────────────
 
     if (isAlerts) {
-      const alertRes = await fetch(`${baseUrl}/predictive-alerts`);
+      const alertRes = await fetch(`${backendUrl}/predictive-alerts`);
       const data = await alertRes.json();
 
       if (!data.alerts || data.alerts.length === 0) {
@@ -2012,7 +2062,7 @@ Basically… we turn chaos into coordinated action.`
 
    // ─── 6. AI MODE 🤖 ─────────────────────────────
 
-const aiRes = await fetch(`${process.env.AI_BASE_URL}/ask-ai`, {
+const aiRes = await fetch(aiEndpoint('/ask-ai'), {
   method: "POST",
   headers: {
     "Content-Type": "application/json"

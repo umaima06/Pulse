@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import LanguageSwitcher from '../components/LanguageSwitcher'
+import { apiUrl } from '../config/api'
 
 function Landing() {
 
@@ -82,7 +83,7 @@ const startCall = async () => {
   setCallText('📞 Requesting call...')
 
   try {
-    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/start-call`, {
+    const res = await fetch(apiUrl('/start-call'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone: ivrPhone.trim() })

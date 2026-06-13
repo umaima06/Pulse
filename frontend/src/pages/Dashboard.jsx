@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api'
+import { GoogleMap, useJsApiLoader, InfoWindow, useGoogleMap } from '@react-google-maps/api'
 import { collection, onSnapshot, getDocs, query, where, orderBy, doc } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
 import { useTranslation } from 'react-i18next'
+import { API_BASE } from '../config/api'
 
 const mapContainerStyle = { width: '100%', height: '100%' }
 const center = { lat: 20.5937, lng: 78.9629 }
-const API_BASE = import.meta.env.VITE_BACKEND_URL
+const googleMapsLibraries = ['marker']
 
 // ─── Urgency helpers ──────────────────────────────────────────────────────────
 const getColor = (urgency) => {
@@ -22,29 +23,47 @@ const getLabel = (urgency) => {
   return              { textKey: 'medium',          bg: 'bg-yellow-500' }
 }
 
-// ─── Icon factories ───────────────────────────────────────────────────────────
-const clusterIcon = (urgency, reportCount) => {
-  if (!window.google) return null
-  return {
-    path: window.google.maps.SymbolPath.CIRCLE,
-    scale: Math.min(14 + (reportCount || 1) * 1.5, 24),
-    fillColor: getColor(urgency),
-    fillOpacity: 1,
-    strokeWeight: 2.5,
-    strokeColor: '#ffffff',
-  }
-}
+function PulseAdvancedMarker({ position, urgency, count, zIndex, onClick, title }) {
+  const map = useGoogleMap()
 
-const unclusteredIcon = () => {
-  if (!window.google) return null
-  return {
-    path: window.google.maps.SymbolPath.CIRCLE,
-    scale: 7,
-    fillColor: '#3b82f6',
-    fillOpacity: 0.9,
-    strokeWeight: 2,
-    strokeColor: '#ffffff',
-  }
+  useEffect(() => {
+    if (!map || !window.google?.maps?.marker?.AdvancedMarkerElement) return
+
+    const content = document.createElement('button')
+    const size = count ? Math.min(28 + count * 3, 48) : 18
+    content.type = 'button'
+    content.ariaLabel = title || 'Map marker'
+    content.textContent = count ? String(count) : ''
+    content.style.width = `${size}px`
+    content.style.height = `${size}px`
+    content.style.borderRadius = '9999px'
+    content.style.border = '2.5px solid #ffffff'
+    content.style.background = count ? getColor(urgency) : '#3b82f6'
+    content.style.color = '#ffffff'
+    content.style.fontSize = '11px'
+    content.style.fontWeight = '700'
+    content.style.display = 'grid'
+    content.style.placeItems = 'center'
+    content.style.boxShadow = '0 8px 18px rgba(15, 23, 42, 0.35)'
+    content.style.cursor = 'pointer'
+
+    const marker = new window.google.maps.marker.AdvancedMarkerElement({
+      map,
+      position,
+      content,
+      zIndex,
+      title
+    })
+
+    const listener = marker.addListener('click', onClick)
+
+    return () => {
+      listener.remove()
+      marker.map = null
+    }
+  }, [map, position.lat, position.lng, urgency, count, zIndex, onClick, title])
+
+  return null
 }
 
 // ─── Action functions ─────────────────────────────────────────────────────────
@@ -157,6 +176,8 @@ function Dashboard() {
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    mapIds: import.meta.env.VITE_GOOGLE_MAP_ID ? [import.meta.env.VITE_GOOGLE_MAP_ID] : undefined,
+    libraries: googleMapsLibraries,
   })
 
   // ── Firestore listeners ────────────────────────────────────────────────────
@@ -313,7 +334,12 @@ function Dashboard() {
 
         {/* ── MAP ── */}
         <div className="relative flex-1 h-full">
-          <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={5}>
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={center}
+            zoom={5}
+            options={{ mapId: import.meta.env.VITE_GOOGLE_MAP_ID }}
+          >
 
             {/* 🔵 Unclustered report dots */}
             {unclusteredReports.map(report => {
@@ -321,11 +347,11 @@ function Dashboard() {
               const lng = report.location_lng ?? report.lng ?? report.longitude
               if (!lat || !lng) return null
               return (
-                <Marker
+                <PulseAdvancedMarker
                   key={report.id}
                   position={{ lat, lng }}
-                  icon={unclusteredIcon()}
                   zIndex={10}
+                  title={report.need_type || 'Individual report'}
                   onClick={() => setHoveredReport(hoveredReport?.id === report.id ? null : report)}
                 />
               )
@@ -369,17 +395,13 @@ function Dashboard() {
 
             {/* 🔴/🟠/🟡 Cluster markers */}
             {clusters.map(cluster => (
-              <Marker
+              <PulseAdvancedMarker
                 key={cluster.id}
                 position={{ lat: cluster.centroid_lat, lng: cluster.centroid_lon }}
-                icon={clusterIcon(cluster.combined_urgency, cluster.report_count)}
-                label={{
-                  text: String(cluster.report_count || 1),
-                  color: '#ffffff',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                }}
+                urgency={cluster.combined_urgency}
+                count={cluster.report_count || 1}
                 zIndex={20 + (cluster.combined_urgency || 0)}
+                title={`${cluster.need_type || 'Crisis'} cluster`}
                 onClick={() => {
                   setHoveredReport(null)
                   setSelected(cluster)
