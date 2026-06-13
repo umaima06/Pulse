@@ -4,6 +4,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
 import { useTranslation } from 'react-i18next'
+import { aiUrl } from '../config/api'
 
 function Intake() {
   const { t } = useTranslation()
@@ -33,9 +34,7 @@ function Intake() {
     try {
       const fullText = `${form.need_type ? form.need_type + ': ' : ''}${form.message}. Location: ${form.location}`
 
-const AI_BASE = import.meta.env.VITE_AI_URL
-
-const aiRes = await fetch(`${AI_BASE}/analyze`, {
+const aiRes = await fetch(aiUrl('/analyze'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: fullText })

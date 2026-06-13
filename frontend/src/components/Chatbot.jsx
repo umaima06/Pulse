@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom"
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { MessageCircle } from "lucide-react"
+import { apiUrl } from "../config/api"
 
 function Chatbot() {
   const [open, setOpen] = useState(false)
@@ -31,7 +32,7 @@ function Chatbot() {
     setMessages(prev => [...prev, loadingMsg])
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat`, {
+      const res = await fetch(apiUrl('/chat'), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

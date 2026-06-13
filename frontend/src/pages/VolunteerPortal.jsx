@@ -3,6 +3,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
 import { useTranslation } from 'react-i18next'
+import { apiUrl } from '../config/api'
 
 function VolunteerPortal() {
   const { t } = useTranslation()
@@ -25,7 +26,7 @@ function VolunteerPortal() {
   const updateTask = async (taskId, status) => {
     setActionLoading(taskId + status)
     try {
-      await fetch('https://pulse-backend-production-cd6d.up.railway.app/update-task', {
+      await fetch(apiUrl('/update-task'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task_id: taskId, status })
       })

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Navbar from '../components/Navbar'
 import { useTranslation } from 'react-i18next'
+import { apiUrl } from '../config/api'
 
 function Analytics() {
   const { t } = useTranslation()
@@ -8,7 +9,7 @@ function Analytics() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('https://pulse-backend-production-cd6d.up.railway.app/analytics')
+    fetch(apiUrl('/analytics'))
       .then(r => r.json())
       .then(data => { setAnalytics(data.analytics); setLoading(false) })
       .catch(() => setLoading(false))
