@@ -82,7 +82,7 @@ const startCall = async () => {
   setCallText('📞 Requesting call...')
 
   try {
-    const res = await fetch(`${https://pulse-backend-hbrd.onrender.com}/start-call`, {
+    const res = await fetch(`https://pulse-backend-hbrd.onrender.com/start-call`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone: ivrPhone.trim() })
