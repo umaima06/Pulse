@@ -183,6 +183,11 @@ Call the PULSE number → select language (1-4) → press crisis type (1/2/3) �
 - **Volunteer Portal (/my-tasks)** — no login required. Phone number lookup returns all tasks for that volunteer via Firestore onSnapshot. Active tasks, completed tasks, total count, availability toggle, task accept/complete buttons, and one-tap Google Maps directions link per task.
 - **Route protection** — all dashboard pages redirect to `/login` if unauthenticated. Powered by Firebase Auth.
 - **Mobile-responsive navbar** — hamburger menu for mobile, active link highlights, org name display after login, and logout.
+- **Live Volunteer Map (Landing Page)** — SVG-based real-time India map showing 
+  active volunteer locations across 8 cities (Delhi, Mumbai, Hyderabad, Kolkata, 
+  Bhopal, Chennai, Ahmedabad, Bangalore). Active volunteers show animated pulse 
+  rings radiating outward. Standby volunteers shown as static dots. City labels 
+  and an Active/Standby legend included. Updates live alongside the impact counters.
 
 ---
 
@@ -411,6 +416,13 @@ python seed_data.py seed    # Load 25 demo reports + 20 volunteers
 python seed_data.py clear   # Remove all seeded data
 python seed_data.py reset   # Clear and reload fresh
 ```
+
+---
+
+## 🔐 Demo Credentials
+| Role | Email | Password |
+|---|---|---|
+| NGO Admin | demo@pulse.app | pulse2026 |
 
 ---
 
