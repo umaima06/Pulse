@@ -3,12 +3,11 @@
 > *Turning scattered field reports into real-time, automated community crisis response.*
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-pulse--11de7.web.app-blue)](https://pulse-11de7.web.app/)
-![Backend](https://img.shields.io/badge/Backend-Railway-green)
-![AI Service](https://img.shields.io/badge/AI%20Service-Railway-purple)
+![Backend](https://img.shields.io/badge/Backend-Render-green)
+![AI Service](https://img.shields.io/badge/AI%20Service-Render-purple)
 [![GitHub](https://img.shields.io/badge/GitHub-Public%20Repo-yellow)](https://github.com/umaima06/Pulse)
 ![Status](https://img.shields.io/badge/Status-Live%20%26%20Deployed-brightgreen)
 ![SDG](https://img.shields.io/badge/UN%20SDG-11.5%20%7C%201.5%20%7C%203.8-blue)
-
 ---
 ## 🌍 UN SDG Alignment
 
@@ -72,7 +71,7 @@ The NGO Admin monitors everything on a live Google Maps dashboard — color-code
 ## ⚡ End-to-End Pipeline (how system works)
 
 ```
-Field Worker (WhatsApp / SMS / IVR / Bot)
+Field Worker (WhatsApp / SMS / IVR / Vapi Browser Agent / Vapi Phone Call / Bot)
 ↓
 Express Backend — saves report to Firestore instantly
 ↓
@@ -134,7 +133,13 @@ Call the PULSE number → select language (1-4) → press crisis type (1/2/3) �
 - **IVR Voice System** — field worker calls the PULSE number, selects preferred language, presses 1 (water) / 2 (food) / 3 (medical), and records a 30-second voice report. Zero smartphone literacy required.
 - **Multilingual IVR** — caller selects from Hindi, Telugu, Tamil, or English. Voice menu and prompts dynamically adapt to the selected language.
 - **Manual intake form** — NGO coordinators can log crises directly via the dashboard. Calls the AI microservice, shows urgency score and summary immediately, and saves enriched data to Firestore.
-
+- **Vapi Voice Agent (browser)** — embedded mic button on the landing page. 
+  Field workers tap once, speak their crisis report in any language directly 
+  from the browser — no phone call required. Transcript is sent to the backend 
+  via `/vapi-webhook`, analyzed by AI, and saved to Firestore automatically.
+- **Vapi Phone Number** — call `vapi phone number` directly from any phone. 
+  The PULSE Crisis Reporter AI assistant answers, collects the report via 
+  natural conversation, and routes it through the same AI pipeline.
 ---
 
 ### 🧠 AI Intelligence Layer
@@ -247,7 +252,8 @@ Call the PULSE number → select language (1-4) → press crisis type (1/2/3) �
 | **Gemini Vision API** | Proof photo verification | Multimodal — checks task match AND fraud detection in one API call |
 | Firebase Admin SDK | Firestore + Auth operations | — |
 | node-cron | Hourly escalation scheduler | — |
-| Railway | Production deployment | — |
+| Render | Production deployment | — |
+| Vapi | Browser voice agent + inbound phone AI assistant | — |
 
 ### AI Microservice
 | Technology | Purpose | Why This Google Tool |
@@ -257,7 +263,7 @@ Call the PULSE number → select language (1-4) → press crisis type (1/2/3) �
 | **Gemini 2.5 Flash** | Auto-fallback AI | Multimodal — handles both text analysis and Vision when Groq is unavailable |
 | OpenStreetMap Nominatim | Free geocoding | — |
 | Haversine formula | Geographic clustering (30km radius) | — |
-| Railway | Production deployment | — |
+| Render | Production deployment | — |
 
 > **Future Google integration:** Vertex AI → smarter geospatial clustering · Google Cloud Functions → serverless escalation cron · Looker Studio → NGO impact reporting dashboards
 
@@ -300,6 +306,7 @@ Call the PULSE number → select language (1-4) → press crisis type (1/2/3) �
 | POST | `/generate-report` | Generates AI impact report for a cluster |
 | POST | `/demo-trigger` | Fires 3 demo crisis reports for presentation |
 | GET | `/predictive-alerts` | Returns all active predictive alerts |
+| POST | `/vapi-webhook` | Receives end-of-call transcript from Vapi, saves voice report to Firestore |
 
 ### AI (Flask)
 
