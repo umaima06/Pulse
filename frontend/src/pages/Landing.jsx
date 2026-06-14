@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { apiUrl } from '../config/api'
+import VoiceAgent from '../components/VoiceAgent'
 
 function Landing() {
 
@@ -178,48 +179,59 @@ if (res.ok) {
 
         <p className="text-xs text-gray-500 mb-6">{t('hero_realtime')}</p>
 
-        {/* ── CTA Row: all 4 elements equal h-14 in one flex row ── */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch">
+{/* ── Intake Options ────────────────────────────────────────── */}
+<div className="flex flex-col items-center gap-5 w-full max-w-2xl mx-auto">
 
-            <input
-              type="tel"
-              placeholder="+91XXXXXXXXXX"
-              value={ivrPhone}
-              onChange={(e) => setIvrPhone(e.target.value)}
-              className="h-14 w-44 px-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 text-sm focus:outline-none focus:border-emerald-400 transition-all"
-            />
+  {/* Main CTAs */}
+  <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch">
+    <Link
+      to="/get-started"
+      className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 
+                 rounded-xl text-lg transition-all transform hover:scale-105 active:scale-95 
+                 flex items-center justify-center whitespace-nowrap"
+    >
+      {t('nav_get_started')}
+    </Link>
 
-            <button
-              onClick={startCall}
-              className="h-14 flex items-center justify-center bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-600 hover:to-green-500 shadow-[0_0_25px_rgba(16,185,129,0.5)] text-white font-bold px-8 rounded-xl text-base transition-all transform hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
-            >
-              {t('ivr_btn')}
-            </button>
+    <button
+      onClick={() => document.getElementById('how').scrollIntoView({ behavior: 'smooth' })}
+      className="h-14 border border-gray-600 hover:border-orange-400 text-gray-300 
+                 hover:text-white font-medium px-8 rounded-xl text-lg transition-all 
+                 flex items-center justify-center hover:scale-105 active:scale-95 
+                 cursor-pointer whitespace-nowrap"
+    >
+      {t('how_btn')}
+    </button>
+  </div>
 
-            <Link
-              to="/get-started"
-              className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 rounded-xl text-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center whitespace-nowrap"
-            >
-              {t('nav_get_started')}
-            </Link>
+  {/* IVR — field worker channel, shown as static info, not broken button */}
+  <div className="flex items-center gap-4 px-5 py-4 bg-white/5 border border-white/10 
+                  rounded-xl w-full max-w-sm">
+    <span className="text-2xl">📞</span>
+    <div className="text-left">
+      <p className="text-gray-300 text-sm font-semibold mb-0.5">
+        Field workers — call from any phone
+      </p>
+      <p className="text-emerald-400 font-mono text-sm font-bold">
+        +12603466138
+      </p>
+      <p className="text-gray-500 text-xs mt-0.5">
+        Hindi · Telugu · Tamil · English · Select language → speak report
+      </p>
+    </div>
+  </div>
 
-            <button
-              onClick={() => document.getElementById('how').scrollIntoView({ behavior: 'smooth' })}
-              className="h-14 border border-gray-600 hover:border-orange-400 text-gray-300 hover:text-white font-medium px-8 rounded-xl text-lg transition-all flex items-center justify-center hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
-            >
-              {t('how_btn')}
-            </button>
+  {/* Divider */}
+  <div className="flex items-center gap-3 w-full max-w-sm">
+    <div className="h-px flex-1 bg-white/10" />
+    <span className="text-gray-500 text-xs">or demo via browser</span>
+    <div className="h-px flex-1 bg-white/10" />
+  </div>
 
-          </div>
+  {/* Vapi Voice Agent */}
+  <VoiceAgent />
 
-          {/* Caption below the full row */}
-          <p className="text-gray-500 text-xs text-center max-w-xs">
-            Enter your number to receive a live IVR demo call.
-            Currently in production phase - only Twilio-verified numbers
-            can receive calls. <span className="text-emerald-400">Upgrade to paid removes this limit.</span>
-          </p>
-        </div>
+</div>
 
         {/* Voice AI UI */}
         {callActive && (
