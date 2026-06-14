@@ -45,7 +45,7 @@ function Volunteer() {
     setLoading(true)
 
     try {
-      const res = await fetch('https://pulse-backend-production-cd6d.up.railway.app/register-volunteer', {
+      const res = await fetch('https://pulse-backend-hbrd.onrender.com/register-volunteer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
