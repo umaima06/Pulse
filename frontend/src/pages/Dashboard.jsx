@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 
 const mapContainerStyle = { width: '100%', height: '100%' }
 const center = { lat: 20.5937, lng: 78.9629 }
-const API_BASE = import.meta.env.VITE_BACKEND_URL
+const API_BASE = https://pulse-backend-hbrd.onrender.com
 
 // ─── Urgency helpers ──────────────────────────────────────────────────────────
 const getColor = (urgency) => {

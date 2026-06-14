@@ -31,7 +31,7 @@ function Chatbot() {
     setMessages(prev => [...prev, loadingMsg])
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/chat`, {
+      const res = await fetch(`${https://pulse-backend-hbrd.onrender.com}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

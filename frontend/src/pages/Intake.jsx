@@ -33,7 +33,7 @@ function Intake() {
     try {
       const fullText = `${form.need_type ? form.need_type + ': ' : ''}${form.message}. Location: ${form.location}`
 
-const AI_BASE = import.meta.env.VITE_AI_URL
+const AI_BASE = "https://pulse-ai-etn6.onrender.com"
 
 const aiRes = await fetch(`${AI_BASE}/analyze`, {
         method: 'POST',
