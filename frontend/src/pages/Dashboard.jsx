@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { GoogleMap, useJsApiLoader, InfoWindow, useGoogleMap } from '@react-google-maps/api'
 import { collection, onSnapshot, getDocs, query, where, orderBy, doc } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -21,6 +21,17 @@ const getLabel = (urgency) => {
   if (urgency >= 80) return { textKey: 'critical', bg: 'bg-red-600' }
   if (urgency >= 50) return { textKey: 'high',     bg: 'bg-orange-500' }
   return              { textKey: 'medium',          bg: 'bg-yellow-500' }
+}
+
+// ─── Distance helper (Haversine) ──────────────────────────────────────────────
+const getDistanceKm = (lat1, lng1, lat2, lng2) => {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng/2) * Math.sin(dLng/2)
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
 }
 
 function PulseAdvancedMarker({ position, urgency, count, zIndex, onClick, title }) {
@@ -62,6 +73,82 @@ function PulseAdvancedMarker({ position, urgency, count, zIndex, onClick, title 
       marker.map = null
     }
   }, [map, position.lat, position.lng, urgency, count, zIndex, onClick, title])
+
+  return null
+}
+
+// ─── Volunteer Marker (green pulsing dot) ─────────────────────────────────────
+function VolunteerMarker({ position, name, isHighlighted, onClick }) {
+  const map = useGoogleMap()
+  const markerRef = useRef(null)
+
+  useEffect(() => {
+    if (!map || !window.google?.maps?.marker?.AdvancedMarkerElement) return
+
+    const content = document.createElement('div')
+    content.style.position = 'relative'
+    content.style.width = '20px'
+    content.style.height = '20px'
+    content.style.cursor = 'pointer'
+
+    // Pulsing ring
+    const ring = document.createElement('div')
+    ring.style.position = 'absolute'
+    ring.style.inset = '-6px'
+    ring.style.borderRadius = '9999px'
+    ring.style.border = `3px solid ${isHighlighted ? '#facc15' : '#22c55e'}`
+    ring.style.opacity = '0.6'
+    ring.style.animation = 'pulse 1.5s infinite'
+    content.appendChild(ring)
+
+    // Dot
+    const dot = document.createElement('div')
+    dot.style.width = '20px'
+    dot.style.height = '20px'
+    dot.style.borderRadius = '9999px'
+    dot.style.background = isHighlighted ? '#facc15' : '#22c55e'
+    dot.style.border = '3px solid #ffffff'
+    dot.style.boxShadow = `0 0 12px ${isHighlighted ? '#facc15' : '#22c55e'}`
+    dot.style.display = 'flex'
+    dot.style.alignItems = 'center'
+    dot.style.justifyContent = 'center'
+    dot.style.fontSize = '10px'
+    dot.textContent = '🧑'
+    content.appendChild(dot)
+
+    // Name label
+    const label = document.createElement('div')
+    label.textContent = name || 'Volunteer'
+    label.style.position = 'absolute'
+    label.style.top = '24px'
+    label.style.left = '50%'
+    label.style.transform = 'translateX(-50%)'
+    label.style.background = isHighlighted ? '#facc15' : '#166534'
+    label.style.color = isHighlighted ? '#000' : '#fff'
+    label.style.fontSize = '9px'
+    label.style.fontWeight = '700'
+    label.style.padding = '1px 5px'
+    label.style.borderRadius = '4px'
+    label.style.whiteSpace = 'nowrap'
+    label.style.pointerEvents = 'none'
+    content.appendChild(label)
+
+    const marker = new window.google.maps.marker.AdvancedMarkerElement({
+      map,
+      position,
+      content,
+      zIndex: isHighlighted ? 100 : 50,
+      title: name || 'Volunteer'
+    })
+
+    markerRef.current = marker
+    const listener = marker.addListener('click', onClick)
+
+    return () => {
+      listener.remove()
+      marker.map = null
+    }
+  }, [map, position.lat, position.lng, name, isHighlighted, onClick])
 
   return null
 }
@@ -174,6 +261,10 @@ function Dashboard() {
   const [alerts, setAlerts]                         = useState([])
   const [, forceUpdate]                             = useState(0)
 
+  // ── Live tracking state ────────────────────────────────────────────────────
+  const [volunteerLocations, setVolunteerLocations] = useState([])
+  const [selectedVolunteer, setSelectedVolunteer]   = useState(null)
+
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     mapIds: import.meta.env.VITE_GOOGLE_MAP_ID ? [import.meta.env.VITE_GOOGLE_MAP_ID] : undefined,
@@ -195,7 +286,14 @@ function Dashboard() {
       (snap) => setReports(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     )
 
-    return () => { unsub1(); unsub2() }
+    // ── Live volunteer locations listener ──────────────────────────────────
+    const unsub3 = onSnapshot(collection(db, 'volunteer_locations'), (snap) => {
+      const locs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(v => v.lat && v.lng)
+      setVolunteerLocations(locs)
+    })
+
+    return () => { unsub1(); unsub2(); unsub3() }
   }, [])
 
   // ── Live listener on selected cluster ─────────────────────────────────────
@@ -267,6 +365,22 @@ function Dashboard() {
     setReportLoading(false)
   }
 
+  // ── Get assigned volunteer location for selected cluster ───────────────────
+  const assignedVolunteerLocation = selected?.assigned_volunteer_id
+    ? volunteerLocations.find(v => v.volunteer_id === selected.assigned_volunteer_id || v.id === selected.assigned_volunteer_id)
+    : null
+
+  const distanceToCluster = assignedVolunteerLocation && selected
+    ? getDistanceKm(
+        assignedVolunteerLocation.lat,
+        assignedVolunteerLocation.lng,
+        selected.centroid_lat,
+        selected.centroid_lon
+      ).toFixed(1)
+    : null
+
+  const etaMinutes = distanceToCluster ? Math.round(distanceToCluster * 3) : null // ~20km/h avg
+
   // ── Loading gate ───────────────────────────────────────────────────────────
   if (!isLoaded) return (
     <div className="h-screen bg-gray-900 flex items-center justify-center">
@@ -308,9 +422,10 @@ function Dashboard() {
           { labelKey: 'medium',        value: clusters.filter(c => c.combined_urgency < 50).length,                             bg: 'bg-yellow-900', text: 'text-yellow-300' },
           { labelKey: 'cluster_severity', value: clusters.length,                                                               bg: 'bg-gray-700',   text: 'text-gray-300'   },
           { labelKey: 'total_reports', value: reports.length,                                                                   bg: 'bg-blue-900',   text: 'text-blue-300'   },
+          { label: '🟢 Live',          value: volunteerLocations.length,                                                        bg: 'bg-green-900',  text: 'text-green-300'  },
         ].map(stat => (
-          <div key={stat.labelKey} className={`px-4 py-2 rounded-lg flex-shrink-0 ${stat.bg}`}>
-            <p className={`text-xs ${stat.text}`}>{t(stat.labelKey).toUpperCase()}</p>
+          <div key={stat.labelKey || stat.label} className={`px-4 py-2 rounded-lg flex-shrink-0 ${stat.bg}`}>
+            <p className={`text-xs ${stat.text}`}>{stat.label || t(stat.labelKey).toUpperCase()}</p>
             <p className="text-white font-bold text-xl">{stat.value}</p>
           </div>
         ))}
@@ -410,6 +525,42 @@ function Dashboard() {
               />
             ))}
 
+            {/* 🟢 Live volunteer markers */}
+            {volunteerLocations.map(vol => (
+              <VolunteerMarker
+                key={vol.id}
+                position={{ lat: vol.lat, lng: vol.lng }}
+                name={vol.name || vol.volunteer_name || vol.volunteer_id?.slice(0, 6)}
+                isHighlighted={
+                  selected?.assigned_volunteer_id === vol.volunteer_id ||
+                  selected?.assigned_volunteer_id === vol.id
+                }
+                onClick={() => setSelectedVolunteer(selectedVolunteer?.id === vol.id ? null : vol)}
+              />
+            ))}
+
+            {/* InfoWindow for clicked volunteer */}
+            {selectedVolunteer && (
+              <InfoWindow
+                position={{ lat: selectedVolunteer.lat, lng: selectedVolunteer.lng }}
+                onCloseClick={() => setSelectedVolunteer(null)}
+              >
+                <div style={{ maxWidth: 200, fontFamily: 'sans-serif' }}>
+                  <p style={{ fontWeight: 'bold', color: '#166534', marginBottom: 4 }}>
+                    🧑 {selectedVolunteer.name || selectedVolunteer.volunteer_name || 'Volunteer'}
+                  </p>
+                  <p style={{ fontSize: 11, color: '#374151' }}>
+                    📍 {selectedVolunteer.lat?.toFixed(4)}, {selectedVolunteer.lng?.toFixed(4)}
+                  </p>
+                  {selectedVolunteer.updated_at && (
+                    <p style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                      🕐 Updated {getTimeAgo(selectedVolunteer.updated_at)}
+                    </p>
+                  )}
+                </div>
+              </InfoWindow>
+            )}
+
           </GoogleMap>
 
           {/* Legend */}
@@ -418,6 +569,7 @@ function Dashboard() {
             <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-500 inline-block" /><span>{t('high')} cluster</span></div>
             <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" /><span>{t('medium')} cluster</span></div>
             <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500 inline-block" /><span>Individual report</span></div>
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-400 inline-block" /><span>Live volunteer</span></div>
           </div>
 
           {/* Toggle feed button */}
@@ -436,6 +588,26 @@ function Dashboard() {
               <h2 className="text-white font-bold">📡 {t('incoming_reports')}</h2>
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             </div>
+
+            {/* Live volunteers mini list */}
+            {volunteerLocations.length > 0 && (
+              <div className="p-3 border-b border-gray-700 bg-gray-900">
+                <p className="text-green-400 text-xs font-bold mb-2">🟢 LIVE VOLUNTEERS ({volunteerLocations.length})</p>
+                <div className="space-y-1">
+                  {volunteerLocations.slice(0, 3).map(vol => (
+                    <div key={vol.id} className="flex items-center gap-2 text-xs text-gray-300">
+                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+                      <span>{vol.name || vol.volunteer_name || vol.volunteer_id?.slice(0, 8) || 'Volunteer'}</span>
+                      <span className="text-gray-500 ml-auto">{vol.updated_at ? getTimeAgo(vol.updated_at) : 'live'}</span>
+                    </div>
+                  ))}
+                  {volunteerLocations.length > 3 && (
+                    <p className="text-gray-500 text-xs">+{volunteerLocations.length - 3} more</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="divide-y divide-gray-700 overflow-y-auto">
               {reports.length === 0 ? (
                 <div className="p-6 text-center">
@@ -475,6 +647,39 @@ function Dashboard() {
               <div className={`inline-block px-3 py-1 rounded-full text-white text-sm font-bold mb-4 ${getLabel(selected.combined_urgency).bg}`}>
                 {t(getLabel(selected.combined_urgency).textKey).toUpperCase()} — {selected.combined_urgency}/100
               </div>
+
+              {/* 🟢 Live tracking card */}
+              {assignedVolunteerLocation ? (
+                <div className="bg-green-900 border border-green-600 rounded-lg p-3 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    <p className="text-green-300 text-xs font-bold">VOLUNTEER LIVE TRACKING</p>
+                  </div>
+                  <p className="text-white text-sm font-semibold">
+                    🧑 {assignedVolunteerLocation.name || assignedVolunteerLocation.volunteer_name || 'Volunteer'}
+                  </p>
+                  <div className="flex gap-3 mt-2">
+                    <div className="text-center">
+                      <p className="text-green-400 text-lg font-bold">{distanceToCluster} km</p>
+                      <p className="text-gray-400 text-xs">Distance</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-yellow-400 text-lg font-bold">{etaMinutes} min</p>
+                      <p className="text-gray-400 text-xs">ETA</p>
+                    </div>
+                  </div>
+                  {assignedVolunteerLocation.updated_at && (
+                    <p className="text-gray-400 text-xs mt-2">
+                      📍 Location updated {getTimeAgo(assignedVolunteerLocation.updated_at)}
+                    </p>
+                  )}
+                </div>
+              ) : selected.assigned_volunteer_id ? (
+                <div className="bg-gray-700 border border-gray-600 rounded-lg p-3 mb-4">
+                  <p className="text-gray-400 text-xs font-bold">📍 VOLUNTEER TRACKING</p>
+                  <p className="text-gray-300 text-sm mt-1">Waiting for volunteer to share location...</p>
+                </div>
+              ) : null}
 
               <div className="space-y-3">
                 {[
