@@ -8,7 +8,6 @@ import { API_BASE } from '../config/api'
 
 const mapContainerStyle = { width: '100%', height: '100%' }
 const center = { lat: 20.5937, lng: 78.9629 }
-const API_BASE = "https://pulse-backend-hbrd.onrender.com"
 const googleMapsLibraries = ['marker']
 
 // ─── Urgency helpers ──────────────────────────────────────────────────────────
