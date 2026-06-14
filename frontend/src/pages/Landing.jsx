@@ -1,419 +1,447 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { apiUrl } from '../config/api'
-import VoiceAgent from '../components/VoiceAgent'
 
-function Landing() {
+/* ── Glow blob ── */
+const Glow = ({ color, x='50%', y='40%', w=600, h=350 }) => (
+  <div aria-hidden style={{
+    position:'absolute', left:x, top:y, transform:'translate(-50%,-50%)',
+    width:w, height:h, borderRadius:'50%',
+    background:`radial-gradient(ellipse, ${color} 0%, transparent 70%)`,
+    pointerEvents:'none', zIndex:0
+  }}/>
+)
 
-  // ─── Live counters ───────────────────────────────────────────────────────────
-  const [people, setPeople]         = useState(0)
-  const [volunteers, setVolunteers] = useState(0)
-  const [resolved, setResolved]     = useState(0)
+/* ── Firefly ── */
+const Firefly = ({ style }) => (
+  <motion.div aria-hidden
+    style={{ position:'absolute', width:5, height:5, borderRadius:'50%',
+      background:'#6ee7b7', boxShadow:'0 0 10px 3px #6ee7b766', ...style, zIndex:1 }}
+    animate={{ y:[0,-40,0], opacity:[0,0.85,0], x:[0,10,-6,0] }}
+    transition={{ duration:6+Math.random()*5, repeat:Infinity, ease:'easeInOut', delay:Math.random()*5 }}
+  />
+)
 
-  // ─── Live events feed ────────────────────────────────────────────────────────
-  const [events, setEvents] = useState([])
-
-  // ─── Voice AI simulation ─────────────────────────────────────────────────────
-  const [callActive, setCallActive] = useState(false)
-  const [callText, setCallText]     = useState('')
-
-  // ─── WhatsApp chat simulation ────────────────────────────────────────────────
-  const [chat, setChat] = useState([])
-
+export default function Landing() {
+  const [people,setPeople]         = useState(0)
+  const [volunteers,setVolunteers] = useState(0)
+  const [resolved,setResolved]     = useState(0)
+  const [events,setEvents]         = useState([])
+  const [activeStep,setActiveStep] = useState(0)
+  const [videoErr,setVideoErr]     = useState(false)
   const { t } = useTranslation()
 
-  // ─── Live counter effect ──────────────────────────────────────────────────────
-  useEffect(() => {
-    let p = 0, v = 0, r = 0
-    const interval = setInterval(() => {
-      p += Math.floor(Math.random() * 50)
-      v += Math.floor(Math.random() * 3)
-      r += Math.floor(Math.random() * 2)
-      setPeople(p)
-      setVolunteers(v)
-      setResolved(r)
-    }, 1500)
-    return () => clearInterval(interval)
-  }, [])
+  useEffect(()=>{
+    let p=0,v=0,r=0
+    const id=setInterval(()=>{
+      p+=Math.floor(Math.random()*50); v+=Math.floor(Math.random()*3); r+=Math.floor(Math.random()*2)
+      setPeople(p); setVolunteers(v); setResolved(r)
+    },1500); return ()=>clearInterval(id)
+  },[])
 
-  // ─── Live events feed effect ──────────────────────────────────────────────────
-  useEffect(() => {
-    const messages = [
-      'Flood alert detected in Hyderabad',
-      'Food request processed in Mumbai',
-      'Medical emergency flagged in Delhi',
-      'Volunteer dispatched in Bangalore',
-      'New crisis cluster formed in Chennai',
-    ]
-    const interval = setInterval(() => {
-      const newEvent = messages[Math.floor(Math.random() * messages.length)]
-      setEvents(prev => [newEvent, ...prev.slice(0, 4)])
-    }, 2500)
-    return () => clearInterval(interval)
-  }, [])
+  useEffect(()=>{
+    const msgs=['Flood alert · Hyderabad','Food request · Mumbai','Medical emergency · Delhi','Volunteer dispatched · Bangalore','Crisis cluster · Chennai']
+    const id=setInterval(()=>setEvents(p=>[msgs[Math.floor(Math.random()*msgs.length)],...p.slice(0,4)]),2500)
+    return ()=>clearInterval(id)
+  },[])
 
-  // ─── WhatsApp simulation effect ───────────────────────────────────────────────
-  useEffect(() => {
-    const msgs = [
-      'Need food in Secunderabad',
-      'Water rising rapidly here',
-      'Medical help required urgently',
-      'Children stranded in area',
-    ]
-    const interval = setInterval(() => {
-      const msg = msgs[Math.floor(Math.random() * msgs.length)]
-      setChat(prev => [...prev.slice(-3), msg])
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [])
+  useEffect(()=>{
+    const id=setInterval(()=>setActiveStep(s=>(s+1)%4),3000)
+    return ()=>clearInterval(id)
+  },[])
 
-  // ─── Voice AI simulation ──────────────────────────────────────────────────────
-const [ivrPhone, setIvrPhone] = useState('')
+  const flies = Array.from({length:12},(_,i)=>({ left:`${5+(i*7.3)%88}%`, top:`${8+(i*11.7)%80}%` }))
 
-const startCall = async () => {
-  if (!ivrPhone.trim()) {
-    setCallActive(true)
-    setCallText('⚠️ Please enter your phone number first')
-    return
-  }
+  const steps=[
+    {step:'01',titleKey:'step1_title',descKey:'step1_desc',icon:'📱',accent:'#059669'},
+    {step:'02',titleKey:'step2_title',descKey:'step2_desc',icon:'🤖',accent:'#7c3aed'},
+    {step:'03',titleKey:'step3_title',descKey:'step3_desc',icon:'📍',accent:'#d97706'},
+    {step:'04',titleKey:'step4_title',descKey:'step4_desc',icon:'🚀',accent:'#059669'},
+  ]
 
-  setCallActive(true)
-  setCallText('📞 Requesting call...')
-
-  try {
-    const res = await fetch(apiUrl('/start-call'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: ivrPhone.trim() })
-    })
-if (res.ok) {
-  setCallText('📞 Call incoming on your phone! 👀')
-} else {
-  const data = await res.json()
-  if (data.error?.includes('not a verified')) {
-    setCallText('⚠️ Number not verified with Twilio. Upgrade to call any number.')
-  } else {
-    setCallText(`❌ ${data.error || 'Failed to trigger call'}`)
-  }
-}
-  } catch (err) {
-    console.error(err)
-    setCallText('❌ Backend not reachable')
-  }
-}
-
+  /* ── shared section style ── */
+  const sec = (bg, pt=80) => ({
+    minHeight:'100vh', display:'flex', flexDirection:'column',
+    justifyContent:'center', position:'relative', overflow:'hidden', background:bg,
+    padding:`${pt}px 0`
+  })
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#0f172a,_#020617)] text-white animate-fadeIn">
+    <div style={{ fontFamily:"'Inter',sans-serif", color:'#1a1a1a' }}>
 
-   {/* ── Navbar ─────────────────────────────────────────────────────────── */}
-  <div className="flex flex-col px-8 py-5 border-b border-white/10">
-  
-    {/* TOP ROW */}
-    <div className="flex items-center justify-between w-full">
-      
-      {/* LEFT: Logo */}
-      <h1 className="text-2xl font-bold text-emerald-400">
-        ⚡ {t('brand')}
-      </h1>
-      
-      {/* RIGHT: Login + Get Started */}
-      <div className="flex items-center gap-3">
-        <Link
-        to="/get-started"
-        className="text-gray-300 hover:text-white text-sm px-4 py-2 transition-colors"
-        >
-          {t('nav_login')}
-        </Link>
-        <Link
-        to="/get-started"
-        className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 active:scale-95"
-        >
-          {t('nav_get_started')}
-        </Link>
-      </div>
-    </div>
-
-  {/* BOTTOM ROW: Languages */}
-  <div className="mt-3 flex justify-center">
-    <LanguageSwitcher />
-  </div>
-
-</div>
-
-      {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <motion.div
-        className="max-w-5xl mx-auto px-8 py-20 text-center"
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="inline-flex items-center gap-2 bg-red-900/50 border border-red-700 text-red-300 text-xs px-4 py-2 rounded-full mb-8 font-medium">
-          <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse inline-block"></span>
-          {t('hero_badge')}
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-0 bg-emerald-500 opacity-20 blur-3xl pointer-events-none pulse-bg"></div>
-          <div className="relative z-10">
-            <h2 className="text-5xl md:text-6xl font-black mb-6 leading-tight">
-              {t('hero_title1')}<br />
-              <span className="text-emerald-400">{t('hero_title2')}</span>
-            </h2>
+      {/* ── NAVBAR ── */}
+      <nav style={{
+        position:'fixed', top:0, left:0, right:0, zIndex:100,
+        padding:'12px 32px', display:'flex', flexDirection:'column',
+        background:'#96A78D', backdropFilter:'blur(16px)',
+        borderBottom:'1px solid rgba(0,0,0,0.08)'
+      }}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontWeight:900,fontSize:'1.3rem',letterSpacing:'-0.04em',color:'#fff'}}>⚡ {t('brand')}</span>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <Link to="/get-started" style={{color:'rgba(255,255,255,0.85)',fontSize:'0.875rem',padding:'6px 14px',textDecoration:'none',fontWeight:500}}>{t('nav_login')}</Link>
+            <Link to="/get-started" style={{background:'rgba(0,0,0,0.18)',color:'#fff',fontWeight:700,fontSize:'0.875rem',padding:'9px 20px',borderRadius:10,border:'1px solid rgba(255,255,255,0.25)',textDecoration:'none'}}>
+              {t('nav_get_started')}
+            </Link>
           </div>
         </div>
+        <div style={{marginTop:8,display:'flex',justifyContent:'center'}}><LanguageSwitcher/></div>
+      </nav>
 
-        <p className="text-gray-400 mt-2 flex items-center justify-center gap-1 mb-4">
-          {t('hero_sub')}
-          <span className="dot">.</span>
-          <span className="dot">.</span>
-          <span className="dot">.</span>
-        </p>
-
-        <p className="typing text-gray-400 text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
-          {t('hero_desc')}
-        </p>
-
-        <p className="text-xs text-gray-500 mb-6">{t('hero_realtime')}</p>
-
-{/* ── Intake Options ────────────────────────────────────────── */}
-<div className="flex flex-col items-center gap-5 w-full max-w-2xl mx-auto">
-
-  {/* Main CTAs */}
-  <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch">
-    <Link
-      to="/get-started"
-      className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 
-                 rounded-xl text-lg transition-all transform hover:scale-105 active:scale-95 
-                 flex items-center justify-center whitespace-nowrap"
-    >
-      {t('nav_get_started')}
-    </Link>
-
-    <button
-      onClick={() => document.getElementById('how').scrollIntoView({ behavior: 'smooth' })}
-      className="h-14 border border-gray-600 hover:border-orange-400 text-gray-300 
-                 hover:text-white font-medium px-8 rounded-xl text-lg transition-all 
-                 flex items-center justify-center hover:scale-105 active:scale-95 
-                 cursor-pointer whitespace-nowrap"
-    >
-      {t('how_btn')}
-    </button>
-  </div>
-
-  {/* IVR — field worker channel, shown as static info, not broken button */}
-  <div className="flex items-center gap-4 px-5 py-4 bg-white/5 border border-white/10 
-                  rounded-xl w-full max-w-sm">
-    <span className="text-2xl">📞</span>
-    <div className="text-left">
-      <p className="text-gray-300 text-sm font-semibold mb-0.5">
-        Field workers — call from any phone
-      </p>
-      <p className="text-emerald-400 font-mono text-sm font-bold">
-        +12603466138
-      </p>
-      <p className="text-gray-500 text-xs mt-0.5">
-        Hindi · Telugu · Tamil · English · Select language → speak report
-      </p>
-    </div>
-  </div>
-
-  {/* Divider */}
-  <div className="flex items-center gap-3 w-full max-w-sm">
-    <div className="h-px flex-1 bg-white/10" />
-    <span className="text-gray-500 text-xs">or demo via browser</span>
-    <div className="h-px flex-1 bg-white/10" />
-  </div>
-
-  {/* Vapi Voice Agent */}
-  <VoiceAgent />
-
-</div>
-
-        {/* Voice AI UI */}
-        {callActive && (
-          <div className="mt-8 bg-black/40 border border-emerald-500 rounded-xl p-4 text-center animate-fadeIn">
-            <p className="text-emerald-400 font-medium">{callText}</p>
-          </div>
+      {/* ══════════════════════════════════
+          SECTION 1 — HERO
+          bg: dark forest (video behind it)
+      ══════════════════════════════════ */}
+      <section style={{...sec('#0d1f17', 0), paddingTop:90, color:'#fff'}}>
+        {!videoErr ? (
+          <video autoPlay muted loop playsInline onError={()=>setVideoErr(true)}
+            style={{position:'absolute',inset:0,width:'100%',height:'100%',
+              objectFit:'cover',filter:'brightness(0.28) saturate(1.3)',zIndex:0}}>
+            <source src="/pulse-hero.mp4" type="video/mp4"/>
+          </video>
+        ):(
+          <div style={{position:'absolute',inset:0,zIndex:0,
+            background:'radial-gradient(ellipse 100% 70% at 50% 30%, #0d3326 0%, #060e09 100%)'}}/>
         )}
-      </motion.div>
+        <Glow color="rgba(110,231,183,0.12)" x="50%" y="38%" w={800} h={450}/>
+        <div style={{position:'absolute',inset:0,zIndex:1,pointerEvents:'none',overflow:'hidden'}}>
+          {flies.map((p,i)=><Firefly key={i} style={p}/>)}
+        </div>
 
-      {/* ── Problem Statement ───────────────────────────────────────────────── */}
-      <motion.div
-        className="max-w-5xl mx-auto px-8 py-20 text-center"
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        viewport={{ once: true }}
-      >
-        <h3 className="text-3xl md:text-4xl font-bold mb-6">
-          {t('problem_title1')}
-          <span className="text-red-400"> {t('problem_title2')}</span>
-        </h3>
-        <p className="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
-          {t('problem_desc')}
-        </p>
-      </motion.div>
+        <div style={{position:'relative',zIndex:2,maxWidth:860,margin:'0 auto',padding:'70px 32px 60px',textAlign:'center'}}>
+          <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}} transition={{duration:0.6}}
+            style={{display:'inline-flex',alignItems:'center',gap:8,marginBottom:24,
+              padding:'6px 18px',borderRadius:999,
+              background:'rgba(239,68,68,0.18)',border:'1px solid rgba(239,68,68,0.4)',
+              color:'#fca5a5',fontSize:'0.72rem',fontWeight:700,letterSpacing:'0.06em'}}>
+            <span style={{width:7,height:7,borderRadius:'50%',background:'#f87171',
+              display:'inline-block',animation:'pulse 2s infinite'}}/>
+            {t('hero_badge')}
+          </motion.div>
 
-      {/* ── So we built PULSE ───────────────────────────────────────────────── */}
-      <motion.div
-        className="text-center py-16"
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        viewport={{ once: true }}
-      >
-        <h3 className="text-4xl font-black">
-          {t('built_title')} <span className="text-emerald-400">{t('brand')}</span>
-        </h3>
-        <p className="text-gray-400 mt-4">{t('built_sub')}</p>
-      </motion.div>
+          <motion.h1 initial={{opacity:0,y:28}} animate={{opacity:1,y:0}} transition={{duration:0.7,delay:0.15}}
+            style={{fontSize:'clamp(2.8rem,7vw,5.2rem)',fontWeight:900,lineHeight:1.06,
+              letterSpacing:'-0.04em',margin:'0 0 22px',color:'#fff'}}>
+            {t('hero_title1')}<br/>
+            <span style={{background:'linear-gradient(90deg,#6ee7b7,#34d399,#a7f3d0)',
+              WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>
+              {t('hero_title2')}
+            </span>
+          </motion.h1>
 
-      {/* ── Live Impact Counter ─────────────────────────────────────────────── */}
-      <motion.div
-        className="max-w-4xl mx-auto px-8 pb-16"
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        viewport={{ once: true }}
-      >
-        <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-          <div className="flex items-center justify-center gap-2 mb-8">
-            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-            <p className="text-gray-300 text-sm font-medium">{t('live_impact')}</p>
+          <motion.p initial={{opacity:0}} animate={{opacity:1}} transition={{delay:0.35}}
+            style={{color:'rgba(255,255,255,0.65)',fontSize:'1.1rem',lineHeight:1.75,
+              maxWidth:560,margin:'0 auto 40px'}}>
+            {t('hero_desc')}
+          </motion.p>
+
+          <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:0.5}}
+            style={{display:'flex',gap:12,flexWrap:'wrap',justifyContent:'center'}}>
+            <Link to="/get-started"
+              style={{height:52,background:'#059669',color:'#fff',fontWeight:700,
+                padding:'0 32px',borderRadius:14,display:'flex',alignItems:'center',
+                textDecoration:'none',fontSize:'1rem',
+                boxShadow:'0 0 32px rgba(5,150,105,0.45)'}}>
+              {t('nav_get_started')}
+            </Link>
+            <button onClick={()=>document.getElementById('problem')?.scrollIntoView({behavior:'smooth'})}
+              style={{height:52,border:'1px solid rgba(255,255,255,0.18)',
+                background:'rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.8)',
+                padding:'0 32px',borderRadius:14,cursor:'pointer',fontSize:'1rem',fontWeight:500}}>
+              {t('how_btn')}
+            </button>
+          </motion.div>
+        </div>
+
+        <motion.div animate={{y:[0,10,0]}} transition={{repeat:Infinity,duration:2.5}}
+          style={{position:'absolute',bottom:28,left:'50%',transform:'translateX(-50%)',
+            zIndex:2,display:'flex',flexDirection:'column',alignItems:'center',gap:4,cursor:'pointer'}}
+          onClick={()=>document.getElementById('problem')?.scrollIntoView({behavior:'smooth'})}>
+          <span style={{color:'rgba(255,255,255,0.25)',fontSize:'0.65rem',letterSpacing:'0.12em'}}>SCROLL</span>
+          <div style={{width:1,height:36,background:'linear-gradient(to bottom,#6ee7b7,transparent)'}}/>
+        </motion.div>
+      </section>
+
+      {/* ══════════════════════════════════
+          SECTION 2 — PROBLEM
+          bg: warm cream / beige
+      ══════════════════════════════════ */}
+      <section id="problem" style={sec('#faf8f4')}>
+        <Glow color="rgba(239,68,68,0.06)" x="50%" y="35%" w={700} h={380}/>
+        <div style={{position:'relative',zIndex:1,maxWidth:860,margin:'0 auto',padding:'0 32px',textAlign:'center'}}>
+          <motion.p initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}}
+            style={{color:'#dc2626',fontWeight:700,fontSize:'0.72rem',letterSpacing:'0.2em',
+              textTransform:'uppercase',marginBottom:16}}>The Crisis</motion.p>
+
+          <motion.h2 initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
+            style={{fontSize:'clamp(2rem,5vw,3.6rem)',fontWeight:900,letterSpacing:'-0.03em',
+              lineHeight:1.1,marginBottom:20,color:'#111'}}>
+            {t('problem_title1')}
+            <span style={{color:'#dc2626'}}> {t('problem_title2')}</span>
+          </motion.h2>
+
+          <motion.p initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}} transition={{delay:0.1}}
+            style={{color:'#6b7280',fontSize:'1.05rem',lineHeight:1.8,maxWidth:580,margin:'0 auto 48px'}}>
+            {t('problem_desc')}
+          </motion.p>
+
+          <div style={{display:'flex',flexWrap:'wrap',gap:14,justifyContent:'center',marginBottom:56}}>
+            {[
+              {n:'4–6h',  l:'manual dispatch time'},
+              {n:'78%',   l:'communicate in regional languages'},
+              {n:'40%',   l:'volunteer hours wasted'},
+              {n:'3.3M',  l:'NGOs with no coordination software'},
+            ].map((s,i)=>(
+              <motion.div key={i} initial={{opacity:0,scale:0.88}} whileInView={{opacity:1,scale:1}}
+                viewport={{once:true}} transition={{delay:i*0.07}}
+                style={{border:'1px solid rgba(220,38,38,0.2)',borderRadius:14,
+                  background:'#fff',padding:'14px 24px',textAlign:'center',
+                  boxShadow:'0 2px 12px rgba(0,0,0,0.06)'}}>
+                <p style={{color:'#dc2626',fontWeight:900,fontSize:'1.6rem',lineHeight:1}}>{s.n}</p>
+                <p style={{color:'#9ca3af',fontSize:'0.7rem',marginTop:4}}>{s.l}</p>
+              </motion.div>
+            ))}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
-            <div>
-              <p className="text-5xl font-black text-emerald-400">{people.toLocaleString()}</p>
-              <p className="text-gray-400 mt-2 text-sm">{t('people_reached')}</p>
+          <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:0.25}}>
+            <p style={{color:'#9ca3af',fontSize:'0.9rem',marginBottom:10}}>{t('built_sub')}</p>
+            <p style={{fontSize:'clamp(1.8rem,4vw,2.8rem)',fontWeight:900,letterSpacing:'-0.03em',color:'#111'}}>
+              {t('built_title')}&nbsp;
+              <span style={{color:'#059669'}}>{t('brand')}</span>
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════
+          SECTION 3 — LIVE IMPACT
+          bg: soft white-green
+      ══════════════════════════════════ */}
+      <section style={sec('#f0faf5')}>
+        <Glow color="rgba(5,150,105,0.07)" x="50%" y="40%" w={650} h={350}/>
+        <div style={{position:'relative',zIndex:1,maxWidth:860,margin:'0 auto',padding:'0 32px'}}>
+          <motion.p initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}}
+            style={{color:'#059669',fontWeight:700,fontSize:'0.72rem',letterSpacing:'0.2em',
+              textTransform:'uppercase',marginBottom:12,textAlign:'center'}}>Right Now</motion.p>
+          <motion.h2 initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
+            style={{fontSize:'clamp(1.8rem,4vw,3rem)',fontWeight:900,letterSpacing:'-0.03em',
+              marginBottom:40,textAlign:'center',color:'#111'}}>
+            {t('live_impact')}
+          </motion.h2>
+
+          {/* big counter card */}
+          <motion.div initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
+            style={{border:'1px solid rgba(5,150,105,0.18)',borderRadius:24,
+              background:'#fff',padding:'36px 40px',marginBottom:18,
+              boxShadow:'0 4px 32px rgba(5,150,105,0.08)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:32}}>
+              <span style={{width:8,height:8,borderRadius:'50%',background:'#059669',
+                animation:'pulse 2s infinite',display:'inline-block'}}/>
+              <p style={{color:'#9ca3af',fontSize:'0.8rem',fontWeight:500}}>Live · updating every 1.5s</p>
             </div>
-            <div>
-              <p className="text-5xl font-black text-green-400">{volunteers}</p>
-              <p className="text-gray-400 mt-2 text-sm">{t('volunteers_deployed')}</p>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:24,textAlign:'center'}}>
+              {[{val:people.toLocaleString(),label:t('people_reached'),c:'#059669'},
+                {val:volunteers,label:t('volunteers_deployed'),c:'#047857'},
+                {val:resolved,label:t('crises_resolved'),c:'#0284c7'}
+              ].map((x,i)=>(
+                <div key={i}>
+                  <p style={{fontSize:'3.4rem',fontWeight:900,color:x.c,lineHeight:1}}>{x.val}</p>
+                  <p style={{color:'#9ca3af',fontSize:'0.8rem',marginTop:6}}>{x.label}</p>
+                </div>
+              ))}
             </div>
-            <div>
-              <p className="text-5xl font-black text-blue-400">{resolved}</p>
-              <p className="text-gray-400 mt-2 text-sm">{t('crises_resolved')}</p>
-            </div>
+          </motion.div>
+
+          {/* 3 stat cards */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:14,marginBottom:18}}>
+            {[{v:'30s',l:t('stat1_label'),c:'#059669'},{v:'100%',l:t('stat2_label'),c:'#d97706'},{v:'0',l:t('stat3_label'),c:'#0284c7'}].map((s,i)=>(
+              <motion.div key={i} initial={{opacity:0,y:16}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:i*0.1}}
+                style={{border:'1px solid rgba(0,0,0,0.07)',borderRadius:18,
+                  background:'#fff',padding:'26px 16px',textAlign:'center',
+                  boxShadow:'0 2px 16px rgba(0,0,0,0.05)'}}>
+                <p style={{fontSize:'2.8rem',fontWeight:900,color:s.c,lineHeight:1}}>{s.v}</p>
+                <p style={{color:'#9ca3af',fontSize:'0.78rem',marginTop:6}}>{s.l}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* live feed */}
+          <motion.div initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}} transition={{delay:0.2}}
+            style={{border:'1px solid rgba(0,0,0,0.07)',borderRadius:18,
+              background:'#fff',padding:'22px 28px',boxShadow:'0 2px 16px rgba(0,0,0,0.04)'}}>
+            <p style={{color:'#9ca3af',fontSize:'0.7rem',fontWeight:700,letterSpacing:'0.15em',
+              textTransform:'uppercase',marginBottom:14}}>Live Feed</p>
+            <AnimatePresence>
+              {events.map((e,i)=>(
+                <motion.div key={e+i} initial={{opacity:0,x:-14}} animate={{opacity:1,x:0}} exit={{opacity:0}}
+                  style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',
+                    borderBottom:i<events.length-1?'1px solid #f3f4f6':'none'}}>
+                  <span style={{width:6,height:6,borderRadius:'50%',background:'#059669',flexShrink:0}}/>
+                  <p style={{color:'#374151',fontSize:'0.875rem',margin:0}}>{e}</p>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════
+          SECTION 4 — HOW IT WORKS
+          bg: light warm grey
+      ══════════════════════════════════ */}
+      <section id="how" style={sec('#f7f5f2')}>
+        <Glow color="rgba(124,58,237,0.05)" x="60%" y="30%" w={500} h={300}/>
+        <div style={{position:'relative',zIndex:1,maxWidth:800,margin:'0 auto',padding:'0 32px'}}>
+          <motion.p initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}}
+            style={{color:'#7c3aed',fontWeight:700,fontSize:'0.72rem',letterSpacing:'0.2em',
+              textTransform:'uppercase',marginBottom:12,textAlign:'center'}}>The Pipeline</motion.p>
+          <motion.h2 initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
+            style={{fontSize:'clamp(1.8rem,4vw,3rem)',fontWeight:900,letterSpacing:'-0.03em',
+              marginBottom:8,textAlign:'center',color:'#111'}}>
+            {t('how_title')}
+          </motion.h2>
+          <motion.p initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}}
+            style={{color:'#9ca3af',textAlign:'center',marginBottom:36}}>{t('how_sub')}</motion.p>
+
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {steps.map((item,i)=>(
+              <motion.div key={item.step}
+                initial={{opacity:0,x:-20}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{delay:i*0.08}}
+                onClick={()=>setActiveStep(i)}
+                style={{
+                  border:`1.5px solid ${activeStep===i ? item.accent : 'rgba(0,0,0,0.08)'}`,
+                  borderRadius:16,
+                  background: activeStep===i ? '#fff' : 'rgba(255,255,255,0.6)',
+                  padding:'18px 22px',cursor:'pointer',
+                  transition:'all 0.3s ease',
+                  boxShadow: activeStep===i ? `0 4px 24px ${item.accent}22` : '0 1px 6px rgba(0,0,0,0.04)',
+                  display:'flex',alignItems:'flex-start',gap:18
+                }}>
+                <span style={{fontSize:'1.7rem',flexShrink:0,marginTop:2}}>{item.icon}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontWeight:700,margin:0,
+                    color: activeStep===i ? item.accent : '#111'}}>{t(item.titleKey)}</p>
+                  <AnimatePresence>
+                    {activeStep===i&&(
+                      <motion.p initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}}
+                        style={{color:'#6b7280',fontSize:'0.875rem',margin:'6px 0 0',lineHeight:1.65}}>
+                        {t(item.descKey)}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <span style={{fontWeight:900,fontSize:'1.3rem',color:item.accent,opacity:0.3,flexShrink:0}}>{item.step}</span>
+              </motion.div>
+            ))}
+          </div>
+
+          <div style={{display:'flex',justifyContent:'center',gap:8,marginTop:24}}>
+            {steps.map((_,i)=>(
+              <button key={i} onClick={()=>setActiveStep(i)} style={{
+                width:activeStep===i?28:8, height:8, borderRadius:999,
+                background:activeStep===i?'#059669':'rgba(0,0,0,0.15)',
+                border:'none',cursor:'pointer',transition:'all 0.3s ease'
+              }}/>
+            ))}
           </div>
         </div>
-      </motion.div>
+      </section>
 
-      {/* ── Static Stats ────────────────────────────────────────────────────── */}
-      <div className="max-w-4xl mx-auto px-8 pb-20">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {[
-            { value: '30s',  labelKey: 'stat1_label' },
-            { value: '100%', labelKey: 'stat2_label' },
-            { value: '0',    labelKey: 'stat3_label' },
-          ].map(stat => (
-            <div
-              key={stat.labelKey}
-              className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-6 text-center hover:border-orange-500/50 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] cursor-pointer active:scale-95"
-            >
-              <p className="text-4xl font-black text-emerald-400">{stat.value}</p>
-              <p className="text-gray-400 mt-2 text-sm">{t(stat.labelKey)}</p>
-            </div>
-          ))}
+      {/* ══════════════════════════════════
+          SECTION 5 — WHY PULSE
+          bg: white
+      ══════════════════════════════════ */}
+      <section style={sec('#ffffff')}>
+        <Glow color="rgba(5,150,105,0.05)" x="30%" y="50%" w={500} h={350}/>
+        <div style={{position:'relative',zIndex:1,maxWidth:1000,margin:'0 auto',padding:'0 32px'}}>
+          <motion.p initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}}
+            style={{color:'#d97706',fontWeight:700,fontSize:'0.72rem',letterSpacing:'0.2em',
+              textTransform:'uppercase',marginBottom:12,textAlign:'center'}}>Why It Works</motion.p>
+          <motion.h2 initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
+            style={{fontSize:'clamp(1.8rem,4vw,3rem)',fontWeight:900,letterSpacing:'-0.03em',
+              marginBottom:48,textAlign:'center',color:'#111'}}>
+            {t('why_title')}
+          </motion.h2>
+
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:20}}>
+            {[
+              {titleKey:'why1_title',descKey:'why1_desc',icon:'🧠',accent:'#059669',border:'rgba(5,150,105,0.18)'},
+              {titleKey:'why2_title',descKey:'why2_desc',icon:'🗣️',accent:'#d97706',border:'rgba(217,119,6,0.18)'},
+              {titleKey:'why3_title',descKey:'why3_desc',icon:'⚡',accent:'#0284c7',border:'rgba(2,132,199,0.18)'},
+            ].map((item,i)=>(
+              <motion.div key={i}
+                initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:i*0.1}}
+                whileHover={{y:-5,boxShadow:`0 8px 32px ${item.accent}18`}}
+                style={{border:`1px solid ${item.border}`,borderRadius:22,
+                  background:'#fff',padding:'32px 28px',cursor:'pointer',
+                  boxShadow:'0 2px 16px rgba(0,0,0,0.05)',transition:'all 0.35s ease'}}>
+                <span style={{fontSize:'2.2rem',display:'block',marginBottom:16}}>{item.icon}</span>
+                <p style={{fontWeight:700,color:'#111',marginBottom:10,fontSize:'1rem'}}>{t(item.titleKey)}</p>
+                <p style={{color:'#6b7280',fontSize:'0.875rem',lineHeight:1.7,margin:0}}>{t(item.descKey)}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* ── How it works ────────────────────────────────────────────────────── */}
-      <motion.div
-        id="how"
-        className="max-w-4xl mx-auto px-8 pb-24"
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        viewport={{ once: true }}
-      >
-        <h3 className="text-3xl font-bold text-center mb-4">{t('how_title')}</h3>
-        <p className="text-gray-400 text-center mb-12">{t('how_sub')}</p>
+      {/* ══════════════════════════════════
+          SECTION 6 — CTA + FOOTER
+          bg: deep emerald (dark but intentional)
+      ══════════════════════════════════ */}
+      <section style={{...sec('#052e1c'), color:'#fff'}}>
+        <Glow color="rgba(110,231,183,0.12)" x="50%" y="40%" w={700} h={400}/>
+        <div style={{position:'relative',zIndex:1,maxWidth:800,margin:'0 auto',
+          padding:'0 32px 40px',textAlign:'center'}}>
+          <motion.p initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}}
+            style={{color:'#6ee7b7',fontWeight:700,fontSize:'0.72rem',letterSpacing:'0.2em',
+              textTransform:'uppercase',marginBottom:12}}>Join the Mission</motion.p>
+          <motion.h2 initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
+            style={{fontSize:'clamp(2rem,5vw,3.4rem)',fontWeight:900,letterSpacing:'-0.03em',
+              lineHeight:1.1,marginBottom:16,color:'#fff'}}>
+            {t('cta_title')}
+          </motion.h2>
+          <motion.p initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}} transition={{delay:0.12}}
+            style={{color:'rgba(255,255,255,0.6)',fontSize:'1.05rem',maxWidth:520,
+              margin:'0 auto 40px',lineHeight:1.75}}>
+            {t('cta_sub')}
+          </motion.p>
 
-        <div className="space-y-6 relative">
-          {[
-            { step: '01', titleKey: 'step1_title', descKey: 'step1_desc', icon: '📱', color: 'border-blue-700' },
-            { step: '02', titleKey: 'step2_title', descKey: 'step2_desc', icon: '🤖', color: 'border-purple-700' },
-            { step: '03', titleKey: 'step3_title', descKey: 'step3_desc', icon: '📍', color: 'border-orange-700' },
-            { step: '04', titleKey: 'step4_title', descKey: 'step4_desc', icon: '🚀', color: 'border-green-700' },
-          ].map(item => (
-            <div
-              key={item.step}
-              className={`relative bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-5 flex items-center gap-5 border-l-4 ${item.color} hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] cursor-pointer active:scale-95`}
-            >
-              <div className="absolute left-6 top-0 bottom-0 w-px bg-gradient-to-b from-emerald-400 via-gray-700 to-transparent animate-pulse"></div>
-              <div className="absolute left-5 top-5 w-3 h-3 bg-emerald-400 rounded-full animate-bounce"></div>
-              <div className="absolute inset-0 rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent pointer-events-none"></div>
-              <span className="text-3xl">{item.icon}</span>
-              <div className="flex-1">
-                <p className="text-white font-bold">{t(item.titleKey)}</p>
-                <p className="text-gray-400 text-sm mt-1">{t(item.descKey)}</p>
-              </div>
-              <span className="text-emerald-400 font-black text-2xl opacity-50">{item.step}</span>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* ── Why PULSE ───────────────────────────────────────────────────────── */}
-      <motion.div
-        className="max-w-5xl mx-auto px-8 py-20"
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        viewport={{ once: true }}
-      >
-        <h3 className="text-3xl font-bold text-center mb-12">{t('why_title')}</h3>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            { titleKey: 'why1_title', descKey: 'why1_desc' },
-            { titleKey: 'why2_title', descKey: 'why2_desc' },
-            { titleKey: 'why3_title', descKey: 'why3_desc' },
-          ].map(item => (
-            <div
-              key={item.titleKey}
-              className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-8 hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] cursor-pointer active:scale-95"
-            >
-              <p className="text-emerald-400 font-bold mb-2">{t(item.titleKey)}</p>
-              <p className="text-gray-400 text-sm">{t(item.descKey)}</p>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* ── CTA ─────────────────────────────────────────────────────────────── */}
-      <div className="max-w-4xl mx-auto px-8 pb-24">
-        <div className="bg-gradient-to-r from-orange-900 to-red-900 rounded-2xl p-10 text-center border border-orange-700/50 hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300">
-          <h3 className="text-3xl font-bold mb-4">{t('cta_title')}</h3>
-          <p className="text-gray-300 mb-6">{t('cta_sub')}</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/get-started"
-              className="bg-white text-gray-900 font-bold px-8 py-3 rounded-xl hover:bg-gray-100 transition-all inline-block hover:scale-105 active:scale-95"
-            >
+          <motion.div initial={{opacity:0,y:16}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:0.22}}
+            style={{display:'flex',gap:14,justifyContent:'center',flexWrap:'wrap',marginBottom:40}}>
+            <Link to="/get-started"
+              style={{background:'#6ee7b7',color:'#052e1c',fontWeight:800,
+                padding:'15px 38px',borderRadius:14,textDecoration:'none',fontSize:'1rem'}}>
               {t('cta_btn1')}
             </Link>
-            <Link
-              to="/get-started"
-              className="border border-gray-600 hover:border-orange-400 text-gray-300 hover:text-white font-medium px-8 py-3 rounded-xl text-lg transition-all inline-block hover:scale-105 active:scale-95"
-            >
+            <Link to="/get-started"
+              style={{border:'1px solid rgba(255,255,255,0.2)',background:'rgba(255,255,255,0.06)',
+                color:'rgba(255,255,255,0.8)',padding:'15px 38px',borderRadius:14,
+                textDecoration:'none',fontSize:'1rem'}}>
               {t('cta_btn2')}
             </Link>
+          </motion.div>
+
+          <motion.div initial={{opacity:0}} whileInView={{opacity:1}} viewport={{once:true}} transition={{delay:0.32}}
+            style={{display:'flex',flexWrap:'wrap',justifyContent:'center',gap:10,marginBottom:56}}>
+            {['SDG 11.5 · Disaster Response','SDG 1.5 · Climate Resilience','SDG 3.8 · Healthcare Access'].map((b,i)=>(
+              <span key={i} style={{fontSize:'0.68rem',fontWeight:700,letterSpacing:'0.05em',
+                padding:'5px 14px',borderRadius:999,
+                border:'1px solid rgba(110,231,183,0.3)',color:'#6ee7b7',
+                background:'rgba(110,231,183,0.08)'}}>
+                {b}
+              </span>
+            ))}
+          </motion.div>
+
+          <div style={{borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:24}}>
+            <p style={{color:'rgba(255,255,255,0.25)',fontSize:'0.82rem'}}>{t('footer')}</p>
           </div>
         </div>
-      </div>
-
-      {/* ── Footer ──────────────────────────────────────────────────────────── */}
-      <div className="border-t border-white/10 px-8 py-6 text-center">
-        <p className="text-gray-500 text-sm">{t('footer')}</p>
-      </div>
+      </section>
 
     </div>
   )
 }
-
-export default Landing
