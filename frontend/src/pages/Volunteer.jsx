@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Navbar from '../components/Navbar'
 import { useTranslation } from 'react-i18next'
+import { apiUrl } from '../config/api'
 
 function Volunteer() {
   const { t } = useTranslation()

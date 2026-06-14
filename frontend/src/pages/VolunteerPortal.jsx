@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { collection, onSnapshot, query, where } from 'firebase/firestore'
+import { useState, useEffect, useRef } from 'react'
+import { collection, onSnapshot, query, where, doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
 import { useTranslation } from 'react-i18next'
+import { apiUrl } from '../config/api'
 
 function VolunteerPortal() {
   const { t } = useTranslation()
@@ -12,12 +13,59 @@ function VolunteerPortal() {
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState('')
   const [available, setAvailable] = useState(true)
+  const [isSharing, setIsSharing] = useState(false)
+  const [volunteerInfo, setVolunteerInfo] = useState(null)
+  const trackingInterval = useRef(null)
+
+  // ── GPS tracking ──────────────────────────────────────────────────────────
+  const startTracking = (volId, volName) => {
+    if (!navigator.geolocation) {
+      alert('Geolocation not supported on this device')
+      return
+    }
+    setIsSharing(true)
+    const updateLocation = () => {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setDoc(doc(db, 'volunteer_locations', volId), {
+          volunteer_id: volId,
+          name: volName || 'Volunteer',
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          updated_at: serverTimestamp()
+        })
+      }, (err) => console.error('GPS error:', err), { enableHighAccuracy: true })
+    }
+    updateLocation()
+    trackingInterval.current = setInterval(updateLocation, 5000)
+  }
+
+  const stopTracking = (volId) => {
+    setIsSharing(false)
+    if (trackingInterval.current) {
+      clearInterval(trackingInterval.current)
+      trackingInterval.current = null
+    }
+    if (volId) deleteDoc(doc(db, 'volunteer_locations', volId))
+  }
+
+  useEffect(() => {
+    return () => {
+      if (trackingInterval.current) clearInterval(trackingInterval.current)
+    }
+  }, [])
 
   const findTasks = () => {
     if (!phone) return
     setLoading(true); setSubmitted(true)
     onSnapshot(query(collection(db, 'tasks'), where('volunteer_phone', '==', phone)), (snapshot) => {
-      setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      const taskData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setTasks(taskData)
+      if (taskData.length > 0) {
+        setVolunteerInfo({
+          id: taskData[0].volunteer_id || phone.replace('+', ''),
+          name: taskData[0].volunteer_name || 'Volunteer'
+        })
+      }
       setLoading(false)
     })
   }
@@ -69,7 +117,7 @@ function VolunteerPortal() {
         ) : (
           <div>
             <div className="flex items-center justify-between mb-8">
-              <button onClick={() => { setSubmitted(false); setPhone(''); setTasks([]) }}
+              <button onClick={() => { setSubmitted(false); setPhone(''); setTasks([]); stopTracking(volunteerInfo?.id) }}
                 className="text-gray-500 hover:text-emerald-400 text-sm transition-colors font-medium">
                 {t('search_again')}
               </button>
@@ -85,6 +133,34 @@ function VolunteerPortal() {
               </div>
             </div>
 
+            {/* 🟢 Live Location Sharing Button */}
+            {volunteerInfo && (
+              <div className={`mb-6 rounded-2xl p-4 border ${isSharing ? 'bg-green-900/30 border-green-500/40' : 'bg-white/5 border-white/10'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-bold text-sm">📍 Live Location</p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      {isSharing ? '🟢 Sharing location with NGO dashboard' : 'Share your location so NGO can track you'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => isSharing ? stopTracking(volunteerInfo.id) : startTracking(volunteerInfo.id, volunteerInfo.name)}
+                    className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${isSharing
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'bg-gradient-to-r from-emerald-500 to-green-400 text-white hover:scale-105'}`}
+                  >
+                    {isSharing ? '⏹ Stop' : '▶ Start Sharing'}
+                  </button>
+                </div>
+                {isSharing && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    <span className="text-green-400 text-xs">Updating every 5 seconds</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {loading ? (
               <div className="flex flex-col items-center py-16">
                 <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -92,7 +168,7 @@ function VolunteerPortal() {
               </div>
             ) : tasks.length === 0 ? (
               <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-12 text-center">
-                <p className="text-6xl mb-5">📭</p>
+                <p className="text-6xl mb-5">🔍</p>
                 <p className="text-gray-300 text-xl font-bold mb-2">{t('no_tasks_found')}</p>
                 <p className="text-gray-600 text-sm">{t('no_tasks_for_phone')} {phone}</p>
               </div>

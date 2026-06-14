@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom"
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { MessageCircle } from "lucide-react"
+import { apiUrl } from "../config/api"
 
 function Chatbot() {
   const [open, setOpen] = useState(false)

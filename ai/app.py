@@ -11,7 +11,20 @@ from report_generator import generate_cluster_report, generate_pre_alert
 import os
 import requests
 app = Flask(__name__)
-CORS(app)  # Allows Node.js backend to call this
+default_allowed_origins = [
+    "https://pulse-11de7.web.app",
+    "https://pulse-11de7.firebaseapp.com",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+allowed_origins = default_allowed_origins + [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+CORS(app, resources={r"/*": {"origins": allowed_origins}})
 
 # ── Health check ──────────────────────────────
 @app.route('/health', methods=['GET'])
@@ -393,5 +406,5 @@ if __name__ == '__main__':
     print("  POST /cluster")
     print("  POST /match")
     print("  POST /escalate")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=os.getenv("FLASK_DEBUG") == "1")
     

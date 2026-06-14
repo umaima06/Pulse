@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: pulse-backend
+    runtime: docker
+    plan: free
+    rootDir: backend
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_PUBLIC_URL
+        value: https://pulse-11de7.web.app
+      - key: CORS_ORIGINS
+        value: https://pulse-11de7.web.app,https://pulse-11de7.firebaseapp.com
+      - key: AI_BASE_URL
+        sync: false
+      - key: BACKEND_PUBLIC_URL
+        sync: false
+      - key: TWILIO_WEBHOOK_BASE_URL
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: TWILIO_REAL_NUMBER
+        sync: false
+      - key: MY_PHONE_NUMBER
+        sync: false
+
+  - type: web
+    name: pulse-ai
+    runtime: docker
+    plan: free
+    rootDir: ai
+    healthCheckPath: /health
+    envVars:
+      - key: CORS_ORIGINS
+        value: https://pulse-11de7.web.app,https://pulse-11de7.firebaseapp.com
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

@@ -4,6 +4,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import Navbar from '../components/Navbar'
 import { useTranslation } from 'react-i18next'
+import { aiUrl } from '../config/api'
 
 function Intake() {
   const { t } = useTranslation()
