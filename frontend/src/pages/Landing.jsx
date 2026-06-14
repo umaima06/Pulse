@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { apiUrl } from '../config/api'
+import VoiceAgent from '../components/VoiceAgent'
 
 /* ── Glow blob ── */
 const Glow = ({ color, x='50%', y='40%', w=600, h=350 }) => (
@@ -137,7 +138,35 @@ export default function Landing() {
               maxWidth:560,margin:'0 auto 40px'}}>
             {t('hero_desc')}
           </motion.p>
+{/* IVR callout */}
+<div style={{display:'flex',alignItems:'center',gap:12,margin:'20px auto 0',
+  padding:'12px 20px',borderRadius:14,
+  background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',
+  maxWidth:340}}>
+  <span style={{fontSize:'1.4rem'}}>📞</span>
+  <div style={{textAlign:'left'}}>
+    <p style={{color:'rgba(255,255,255,0.85)',fontSize:'0.8rem',fontWeight:600,margin:0}}>
+      Field workers — call from any phone
+    </p>
+    <p style={{color:'#6ee7b7',fontFamily:'monospace',fontSize:'0.85rem',
+      fontWeight:700,margin:'2px 0 0'}}>+12603466138</p>
+    <p style={{color:'rgba(255,255,255,0.35)',fontSize:'0.68rem',margin:'2px 0 0'}}>
+      Hindi · Telugu · Tamil · English
+    </p>
+  </div>
+</div>
 
+{/* Divider */}
+<div style={{display:'flex',alignItems:'center',gap:10,margin:'16px auto 0',maxWidth:320}}>
+  <div style={{flex:1,height:1,background:'rgba(255,255,255,0.1)'}}/> 
+  <span style={{color:'rgba(255,255,255,0.3)',fontSize:'0.68rem'}}>or demo via browser</span>
+  <div style={{flex:1,height:1,background:'rgba(255,255,255,0.1)'}}/>
+</div>
+
+{/* Voice Agent */}
+<div style={{marginTop:8,display:'flex',justifyContent:'center'}}>
+  <VoiceAgent />
+</div>
           <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:0.5}}
             style={{display:'flex',gap:12,flexWrap:'wrap',justifyContent:'center'}}>
             <Link to="/get-started"
