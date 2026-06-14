@@ -25,7 +25,7 @@ function VolunteerPortal() {
   const updateTask = async (taskId, status) => {
     setActionLoading(taskId + status)
     try {
-      await fetch('http://localhost:3000/update-task', {
+      await fetch('https://pulse-backend-production-cd6d.up.railway.app/update-task', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task_id: taskId, status })
       })

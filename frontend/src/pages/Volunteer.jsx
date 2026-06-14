@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import Navbar from '../components/Navbar'
 import { useTranslation } from 'react-i18next'
 
@@ -45,7 +45,7 @@ function Volunteer() {
     setLoading(true)
 
     try {
-      const res = await fetch('http://localhost:3000/register-volunteer', {
+      const res = await fetch('https://pulse-backend-production-cd6d.up.railway.app/register-volunteer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
