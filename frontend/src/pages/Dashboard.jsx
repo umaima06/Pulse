@@ -1,3 +1,5 @@
+//my dashbaord.jsx
+
 import { useEffect, useState, useRef } from 'react'
 import { GoogleMap, useJsApiLoader, InfoWindow, useGoogleMap } from '@react-google-maps/api'
 import { collection, onSnapshot, getDocs, query, where, orderBy, doc } from 'firebase/firestore'
@@ -276,7 +278,7 @@ function Dashboard() {
     const unsub1 = onSnapshot(collection(db, 'clusters'), (snap) => {
       const data = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(c => c.centroid_lat && c.centroid_lon)
+        .filter(c =>c.centroid_lat != null && c.centroid_lon != null)
         .sort((a, b) => b.combined_urgency - a.combined_urgency)
       setClusters(data)
     })
@@ -289,7 +291,7 @@ function Dashboard() {
     // ── Live volunteer locations listener ──────────────────────────────────
     const unsub3 = onSnapshot(collection(db, 'volunteer_locations'), (snap) => {
       const locs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .filter(v => v.lat && v.lng)
+        .filter(v =>v.lat != null && v.lng != null)
       setVolunteerLocations(locs)
     })
 
@@ -454,6 +456,7 @@ function Dashboard() {
             center={center}
             zoom={5}
             options={{ mapId: import.meta.env.VITE_GOOGLE_MAP_ID }}
+            onLoad={(map) => { console.log("Map ID:", map.get("mapId"))}}
           >
 
             {/* 🔵 Unclustered report dots */}
