@@ -4,3 +4,4 @@ _pycache_/minikube.exe
 node_modules/
 dist/
 build/
+serviceAccountKey.json
