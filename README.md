@@ -254,41 +254,39 @@ Call the PULSE number → select language (1–4) → press crisis type (1/2/3) 
 ## 🛠️ Tech Stack
 
 ### Frontend
-| Technology | Purpose | Why This Google Tool |
+| Technology | Purpose | Why we chose it |
 |---|---|---|
-| React + Vite | UI framework | — |
-| Tailwind CSS + Framer Motion | Styling + animations | — |
+| React + Vite | UI framework | Component model and fast builds |
+| Tailwind CSS + Framer Motion | Styling + animations | Quick, consistent UI and smooth transitions |
 | **Firebase Hosting** | Production deployment | CDN-distributed, automatic SSL, global edge delivery |
-| **Firebase Firestore (onSnapshot)** | Real-time data sync | Zero-latency sync — crisis data on dashboard in under 1 second, no polling |
+| **Firebase Firestore (onSnapshot)** | Real-time data sync | Zero polling: crisis data reaches the dashboard in under 1 second |
 | **Firebase Auth** | NGO authentication | Stateless auth, no separate user database needed |
 | **Google Maps API** | Live cluster map | Urgency-colored markers, exact GPS directions link per dispatch |
-| Vapi Web SDK | Browser voice agent | — |
-| i18next + react-i18next | 7-language frontend | — |
-| react-router-dom | Page routing | — |
+| Vapi Web SDK | Browser voice agent | Speech reporting without building voice infrastructure |
+| i18next + react-i18next | 7-language frontend | Instant language switching with English fallback |
+| react-router-dom | Page routing | Client-side routing and protected routes |
 
 ### Backend
-| Technology | Purpose | Why This Google Tool |
+| Technology | Purpose | Why we chose it |
 |---|---|---|
-| Node.js + Express.js | REST API server (22+ routes) | — |
-| Twilio | WhatsApp + SMS + IVR voice | — |
-| **Gemini Vision API** | Proof photo verification | Multimodal — checks task match AND fraud detection in one API call |
-| Firebase Admin SDK | Firestore + Auth operations | — |
-| Vapi | Browser voice agent + inbound phone AI assistant | — |
-| node-cron | Hourly escalation scheduler | — |
-| Render | Production deployment | — |
+| Node.js + Express.js | REST API server (22+ routes) | Event-driven, well suited to webhooks |
+| Twilio | WhatsApp + SMS + IVR voice | Three channels through one API |
+| **Gemini Vision API** | Proof photo verification | Multimodal: checks task match and fraud in one API call |
+| Firebase Admin SDK | Firestore + Auth operations | Trusted server-side access with token verification |
+| Vapi | Browser voice agent + inbound phone AI assistant | Natural voice conversations without custom speech stack |
+| node-cron | Hourly escalation scheduler | Simple scheduling inside the existing server |
+| Render | Production deployment | Easy hosting for Node and Flask services |
 
 ### AI Microservice
-| Technology | Purpose | Why This Google Tool |
+| Technology | Purpose | Why we chose it |
 |---|---|---|
-| Python 3.x + Flask | AI API server | — |
-| Groq (llama-3.3-70b-versatile) | Crisis analysis + report generation | — |
-| **Gemini 2.5 Flash** | Auto-fallback AI | Multimodal — handles text analysis and Vision when Groq is unavailable |
-| OpenStreetMap Nominatim | Free geocoding | — |
-| Haversine formula | Geographic clustering (30km radius) | — |
-| Render | Production deployment | — |
-
-> **Future Google integration:** Vertex AI → smarter geospatial clustering · Google Cloud Functions → serverless escalation cron · Looker Studio → NGO impact reporting dashboards
-
+| Python 3.x + Flask | AI API server | Lightweight, and Python is the natural home for AI code |
+| Groq (llama-3.3-70b-versatile) | Crisis analysis + report generation | Fast, low-cost open-model inference |
+| **Gemini 2.5 Flash** | Auto-fallback AI | Multimodal: handles text analysis and Vision when Groq is unavailable |
+| OpenStreetMap Nominatim | Free geocoding | Free, no API key, full India coverage |
+| Haversine formula | Geographic clustering (30km radius) | Simple, accurate distance math with no external dependency |
+| Render | Production deployment | Easy hosting alongside the backend |
+ 
 ### Database
 | Collection | Purpose |
 |---|---|
@@ -470,7 +468,33 @@ PULSE changes this by making it possible for:
 At scale, this means faster response times, smarter resource allocation, less duplication of effort, and — most importantly — fewer people waiting in crisis.
 
 ---
+## 💼 Business Model
 
+**Who it's for:** NGO coordinators, volunteers and field workers. The paying customers are small and mid-size NGOs and relief groups running field programs in water, food and health, plus the CSR teams and grant-makers who fund them.
+
+| Tier | Price | What's included |
+|---|---|---|
+| **Free** | ₹0 | 1 NGO, up to 50 reports/month, web dashboard. Drives adoption. |
+| **Pro** | ₹2,999 per NGO per month | All intake channels, auto-dispatch, photo verification, impact reports |
+| **Usage pass-through** | At cost + small margin | Twilio WhatsApp, SMS and IVR charges |
+| **Funder** | ₹25,000 per year | Verified impact dashboards for CSR teams and grant-makers, built from proof photos and completion data |
+
+**Unit economics:** each report costs roughly one LLM call, one geocode and a few messages, so costs scale with usage rather than with headcount.
+
+**Go-to-market:** pilot with NGOs in Hyderabad and Telangana, then expand through NGO networks and CSR partners.
+
+---
+
+## 📈 Scalability
+
+- **Independent services:** the AI service, backend and frontend are deployed separately, so each scales and fails on its own.
+- **Multi-tenant by design:** every record is tagged with `ngo_id`, so adding an NGO means adding a tenant, not a deployment.
+- **AI redundancy:** automatic fallback from Groq LLaMA 3.3 to Gemini 2.5 Flash keeps analysis running during a provider outage.
+- **Real-time without polling:** Firestore `onSnapshot` keeps dashboards live as data grows.
+- **First bottleneck:** geocoding. The public OpenStreetMap Nominatim service is rate-limited, so at scale we move to a self-hosted instance or the Google Geocoding API.
+- **Planned:** Vertex AI geospatial clustering in place of Haversine, and the escalation cron moved to Google Cloud Functions.
+
+---
 ## 🗺️ Roadmap
 
 **Now — live and deployed**
