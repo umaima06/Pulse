@@ -5,3 +5,8 @@ node_modules/
 dist/
 build/
 serviceAccountKey.json
+serviceAccountKey.json
+*serviceAccountKey*.json
+.env
+__pycache__/
+.firebase/
