@@ -534,15 +534,11 @@ At scale, this means faster response times, smarter resource allocation, less du
 
 ## 📜 Development Journey
 
-PULSE is built by a 3-person team during the GDG Solution Challenge sprint. Each teammate maintained detailed development logs tracking every route, feature, bug fix, and system decision from day 1 through deployment.
+PULSE is built by a 3-person team. Each teammate maintained detailed development logs tracking every route, feature, bug fix, and system decision from day 1 through deployment.
 
 👉 [View Full Development Logs](./docs/development-journey.md)
 
 ---
-
-## 📄 License
-
-This project was built for the Google Developer Groups Solution Challenge 2026 under the domain: **Smart Resource Allocation — Data-Driven Volunteer Coordination for Social Impact.**
 
 **UN SDG Targets addressed: SDG 11.5 · SDG 1.5 · SDG 3.8**
 
